@@ -1,0 +1,17 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace  # Removes trailing whitespace
+    -   id: end-of-file-fixer   # Ensures files end with a newline
+    -   id: check-added-large-files  # Prevents giant files from being committed
+    -   id: check-merge-conflict    # Check for files that contain merge conflict strings
+    -   id: detect-private-key      # Checks for private keys
+    -   id: mixed-line-ending       # Replaces mixed line endings
+
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.11
+    hooks:
+    -   id: ruff  # Fast Python linter, includes unused imports check
+        args: [--fix]
+    -   id: ruff-format  # Fast Python formatter

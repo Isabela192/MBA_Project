@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "banking-api"
+version = "0.1.0"
+description = "dependencies for my MBA project"
+authors = ["Isabela Siqueira <isabela7011@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.115.6"
+uvicorn = "^0.34.0"
+sqlalchemy = "^2.0.37"
+pre-commit = "^4.0.1"
+pylint = "^3.3.3"
+black = "^24.10.0"
+wily = "^1.25.0"
+locust = "^2.32.6"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
