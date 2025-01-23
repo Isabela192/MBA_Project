@@ -152,6 +152,11 @@ class AccountProxy(AccountInterface):
 
 
 # --- Routes ---
+@app.get("/")
+async def root():
+    return {"Welcome to the SOLID Application"}
+
+
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(account_id: UUID, deposit_data: DepositRequest):
     command = DepositCommand(account_id, deposit_data.amount)
