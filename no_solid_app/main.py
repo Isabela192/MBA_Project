@@ -169,6 +169,11 @@ auth_manager = AuthenticationManager()
 transaction_facade = TransactionFacade()
 
 
+@app.get("/")
+async def root():
+    return {"Welcome! This is NO SOLID App"}
+
+
 @app.post("/users/")
 async def create_user(user_data: UserBase):
     return auth_manager.register_user(user_data)
