@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from sqlmodel import create_engine
 from uuid import UUID, uuid4
 from fastapi import FastAPI
 from datetime import datetime
@@ -11,23 +11,23 @@ app = FastAPI()
 
 
 # --- Models ---
-class UserBase(BaseModel):
-    account_id: UUID = Field(default_factory=uuid4)
-    document_id: str
-    username: str
-    email: str
+# class UserBase(BaseModel):
+#     account_id: UUID = Field(default_factory=uuid4)
+#     document_id: str
+#     username: str
+#     email: str
 
 
-class AccountBase(BaseModel):
-    account_id: UUID = Field(default_factory=uuid4)
-    document_id: str
-    balance: Decimal = Decimal("0")
-    account_type: str
-    status: str = "ACTIVE"
+# class AccountBase(BaseModel):
+#     account_id: UUID = Field(default_factory=uuid4)
+#     document_id: str
+#     balance: Decimal = Decimal("0")
+#     account_type: str
+#     status: str = "ACTIVE"
 
 
-class DepositRequest(BaseModel):
-    amount: Decimal = Field(gt=0)
+# class DepositRequest(BaseModel):
+#     amount: Decimal = Field(gt=0)
 
 
 # --- Factory Method Pattern ---
@@ -152,6 +152,9 @@ class AccountProxy(AccountInterface):
 
 
 # --- Routes ---
+DATABASE_URL = "sqlite:///./database.db"
+engine = create_engine(DATABASE_URL)
+
 @app.get("/")
 async def root():
     return {"Welcome! This is the SOLID App"}
