@@ -5,30 +5,28 @@ from sqlmodel import create_engine
 from uuid import UUID, uuid4
 from fastapi import FastAPI
 from datetime import datetime
+from sqlmodel import SQLModel, Field, Session, Depends
 import uuid
 
 app = FastAPI()
 
 
 # --- Models ---
-# class UserBase(BaseModel):
-#     account_id: UUID = Field(default_factory=uuid4)
-#     document_id: str
-#     username: str
-#     email: str
+class UserBase(SQLModel, table=True):
+    account_id: UUID = Field(default_factory=uuid4, primary_key=True)
+    document_id: str
+    username: str
+    email: str
 
+class AccountBase(SQLModel, table=True):
+    account_id: UUID = Field(default_factory=uuid4)
+    document_id: str
+    balance: Decimal = Decimal("0")
+    account_type: str
+    status: str = "ACTIVE"
 
-# class AccountBase(BaseModel):
-#     account_id: UUID = Field(default_factory=uuid4)
-#     document_id: str
-#     balance: Decimal = Decimal("0")
-#     account_type: str
-#     status: str = "ACTIVE"
-
-
-# class DepositRequest(BaseModel):
-#     amount: Decimal = Field(gt=0)
-
+class DepositRequest(SQLModel, table=True):
+    amount: Decimal = Field(gt=0)
 
 # --- Factory Method Pattern ---
 class UserFactory(ABC):
@@ -152,32 +150,20 @@ class AccountProxy(AccountInterface):
 
 
 # --- Routes ---
-DATABASE_URL = "sqlite:///./database.db"
-engine = create_engine(DATABASE_URL)
+engine = create_engine("sqlite:///database.db")
+SQLModel.metadata.create_all(engine)
+
+def get_session():
+    with Session(engine) as session:
+        yield session
 
 @app.get("/")
 async def root():
     return {"Welcome! This is the SOLID App"}
 
 
-@app.post("/accounts/{account_id}/deposit")
-async def deposit(account_id: UUID, deposit_data: DepositRequest):
-    command = DepositCommand(account_id, deposit_data.amount)
-    transaction = command.execute()
-
-    real_account = RealAccount()
-    proxy = AccountProxy(real_account)
-    proxy.update_balance(str(account_id), deposit_data.amount)
-
-    return {
-        "message": "Deposit successful",
-        "transaction": transaction,
-        "new_balance": proxy.get_balance(str(account_id)),
-    }
-
-
-@app.post("/users/")
-async def create_user(user_data: UserBase, user_type: str):
+@app.post("/users/", response_model=UserBase)
+async def create_user(user_data: UserBase, user_type: str, session: Session = Depends(get_session)):
     factory = ClientFactory() if user_type == "CLIENT" else ManagerFactory()
     return factory.create_user(user_data)
 
@@ -199,3 +185,19 @@ async def get_balance(account_id: str):
     real_account = RealAccount()
     proxy = AccountProxy(real_account)
     return {"balance": proxy.get_balance(account_id)}
+
+
+@app.post("/accounts/{account_id}/deposit")
+async def deposit(account_id: UUID, deposit_data: DepositRequest):
+    command = DepositCommand(account_id, deposit_data.amount)
+    transaction = command.execute()
+
+    real_account = RealAccount()
+    proxy = AccountProxy(real_account)
+    proxy.update_balance(str(account_id), deposit_data.amount)
+
+    return {
+        "message": "Deposit successful",
+        "transaction": transaction,
+        "new_balance": proxy.get_balance(str(account_id)),
+    }

@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, create_engine, Session, Field, Column, String, UUID, DateTime, Decimal, Relationship
+from sqlmodel import SQLModel, Field, Column, String, UUID, DateTime, Decimal, Relationship
 from uuid import uuid4
 
 class UserBase(SQLModel, table=True):
@@ -8,7 +8,7 @@ class UserBase(SQLModel, table=True):
     email: str
 
 class AccountBase(SQLModel, table=True):
-    account_id: UUID = Field(default_factory=uuid4)
+    account_id: UUID = Field(default_factory=uuid4, foreign_key="user.account_id")
     document_id: str
     balance: Decimal = Decimal("0")
     account_type: str
