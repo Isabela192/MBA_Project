@@ -5,35 +5,41 @@ from uuid import UUID, uuid4
 from enum import Enum
 from sqlmodel import Field, SQLModel, Relationship
 
+
 class UserType(str, Enum):
     CLIENT = "client"
     MANAGER = "manager"
 
+
 class AccountType(str, Enum):
     SAVINGS = "savings"
     CHECKING = "checking"
+
 
 class AccountStatus(str, Enum):
     ACTIVE = "active"
     BLOCKED = "blocked"
     CLOSED = "closed"
 
+
 class TransactionType(str, Enum):
     DEPOSIT = "deposit"
     WITHDRAW = "withdraw"
     TRANSFER = "transfer"
+
 
 class TransactionStatus(str, Enum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
 
+
 class User(SQLModel, table=True):
     __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
     account_id: UUID = Field(default_factory=uuid4, index=True, unique=True)
     document_id: str = Field(max_length=14, index=True, unique=True)
-    username : str 
+    username: str
     email: str = Field(max_length=100, index=True, unique=True)
     user_type: UserType
     created_at: datetime = Field(default_factory=datetime.now)
@@ -42,6 +48,7 @@ class User(SQLModel, table=True):
 
     # Relationships
     accounts: List["Account"] = Relationship(back_populates="owner")
+
 
 class Account(SQLModel, table=True):
     __tablename__ = "accounts"
@@ -60,11 +67,16 @@ class Account(SQLModel, table=True):
 
     # Relationships
     owner: Optional["User"] = Relationship(back_populates="accounts")
-    outgoing_transactions: List["Transaction"] = Relationship(back_populates="from_account", 
-                                                              sa_relationship_kwargs={"foreign_keys": "Transaction.from_account_id"})
-    incoming_transactions: List["Transaction"] = Relationship(back_populates="to_account",
-                                                              sa_relationship_kwargs={"foreign_keys": "Transaction.to_account_id"})
-    
+    outgoing_transactions: List["Transaction"] = Relationship(
+        back_populates="from_account",
+        sa_relationship_kwargs={"foreign_keys": "Transaction.from_account_id"},
+    )
+    incoming_transactions: List["Transaction"] = Relationship(
+        back_populates="to_account",
+        sa_relationship_kwargs={"foreign_keys": "Transaction.to_account_id"},
+    )
+
+
 class Transaction(SQLModel, table=True):
     __tablename__ = "transactions"
 
@@ -80,7 +92,11 @@ class Transaction(SQLModel, table=True):
     to_account_id: Optional[int] = Field(default=None, foreign_key="accounts.id")
 
     # Relationships
-    from_account: Optional["Account"] = Relationship(back_populates="outgoing_transactions", 
-                                                     sa_relationship_kwargs={"foreign_keys": "Transaction.from_account_id"})
-    to_account: Optional["Account"] = Relationship(back_populates="incoming_transactions",
-                                                   sa_relationship_kwargs={"foreign_keys": "Transaction.to_account_id"})
+    from_account: Optional["Account"] = Relationship(
+        back_populates="outgoing_transactions",
+        sa_relationship_kwargs={"foreign_keys": "Transaction.from_account_id"},
+    )
+    to_account: Optional["Account"] = Relationship(
+        back_populates="incoming_transactions",
+        sa_relationship_kwargs={"foreign_keys": "Transaction.to_account_id"},
+    )

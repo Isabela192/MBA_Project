@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-from models import User, UserType, Account, AccountType
+from models import User, UserType
 from sqlmodel import Session
 from typing import Dict, Any
+
 
 class UserFactory(ABC):
     @abstractmethod
     def create_user(self, user_data: Dict[str, Any], session: Session) -> User:
         pass
+
 
 class ClientFactory(UserFactory):
     def create_user(self, user_data: Dict[str, Any], session: Session) -> User:
@@ -26,4 +28,3 @@ class ManagerFactory(UserFactory):
         session.commit()
         session.refresh(user)
         return user
-    
