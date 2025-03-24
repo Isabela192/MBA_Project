@@ -5,7 +5,7 @@ from uuid import uuid4, UUID
 from pydantic import BaseModel, Field
 
 from database import get_session, create_db_and_tables
-from models import Account, Transaction, AccountType, AccountStatus
+from models import User, Account, Transaction, AccountType, AccountStatus
 from factories import ClientFactory, ManagerFactory
 from commands import DepositComand, TransferCommand, WithdrawCommand
 from proxies import AccountProxy, RealAccount
@@ -15,6 +15,7 @@ app = FastAPI()
 
 
 class UserCreate(BaseModel):
+    document_id: str = Field(..., example="12345678901")
     name: str = Field(..., example="John Doe")
     email: str = Field(..., example="john.doe@email.com")
     username: str = Field(..., example="johndoe123")
@@ -60,8 +61,32 @@ async def create_user(
         )
 
     factory = ClientFactory() if user_type == "client" else ManagerFactory()
-    user = factory.create_user(user_data.dict(), session)
-    return user.dict()
+    user = factory.create_user(user_data.model_dump(), session)
+    return {
+        "user_id": user.id,
+        "account_id": user.account_id,
+        "username": user.username,
+        "email": user.email,
+        "user_type": user.user_type,
+        "created_at": user.created_at,
+    }
+
+
+@app.get("/users/")
+async def get_users(session: Session = Depends(get_session)):
+    statement = select(User)
+    users = session.exec(statement).all()
+    return [
+        {
+            "user_id": user.id,
+            "account_id": user.account_id,
+            "username": user.username,
+            "email": user.email,
+            "user_type": user.user_type,
+            "created_at": user.created_at,
+        }
+        for user in users
+    ]
 
 
 @app.post("/accounts/", status_code=status.HTTP_201_CREATED)
@@ -85,7 +110,7 @@ async def create_account(
     session.add(account)
     session.commit()
     session.refresh(account)
-    return account.dict()
+    return account.model_dump()
 
 
 @app.post("/accounts/{account_id}/deposit")
@@ -166,7 +191,7 @@ async def transfer(
 async def get_balance(account_id: UUID, session: Session = Depends(get_session)):
     real_account = RealAccount()
     proxy = AccountProxy(real_account)
-    balance = proxy.get_balance(str(account_id), session)
+    balance = proxy.get_balance(account_id, session)
 
     if balance is None:
         raise HTTPException(
