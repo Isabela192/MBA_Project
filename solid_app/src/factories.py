@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
-from models import User, UserType
-from sqlmodel import Session
 from typing import Dict, Any
+from sqlmodel import Session
+from db_sqlite.models import User, UserType
+
+# Factory Method Pattern
 
 
 class UserFactory(ABC):
@@ -11,6 +13,10 @@ class UserFactory(ABC):
 
 
 class ClientFactory(UserFactory):
+    """
+    Factory Method applied to create users on the Database.
+    """
+
     def create_user(self, user_data: Dict[str, Any], session: Session) -> User:
         user = User(**user_data, user_type=UserType.CLIENT, is_staff=False)
 
@@ -21,6 +27,10 @@ class ClientFactory(UserFactory):
 
 
 class ManagerFactory(UserFactory):
+    """
+    Factory Method applied to create manager users on the Database.
+    """
+
     def create_user(self, user_data: Dict[str, Any], session: Session) -> User:
         user = User(**user_data, user_type=UserType.MANAGER, is_staff=True)
 

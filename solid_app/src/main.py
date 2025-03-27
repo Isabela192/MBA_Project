@@ -3,9 +3,10 @@ from sqlmodel import Session, select
 from decimal import Decimal
 from uuid import uuid4, UUID
 from pydantic import BaseModel, Field
+import uvicorn
 
-from database import get_session, create_db_and_tables
-from models import User, Account, Transaction, AccountType, AccountStatus
+from db_sqlite.database import get_session, create_db_and_tables
+from db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
 from factories import ClientFactory, ManagerFactory
 from commands import DepositComand, TransferCommand, WithdrawCommand
 from proxies import AccountProxy, RealAccount
@@ -188,7 +189,7 @@ async def transfer(
 
 
 @app.get("/accounts/{account_id}/balance")
-async def get_balance(account_id: UUID, session: Session = Depends(get_session)):
+async def get_balance(account_id: str, session: Session = Depends(get_session)):
     real_account = RealAccount()
     proxy = AccountProxy(real_account)
     balance = proxy.get_balance(account_id, session)
@@ -245,3 +246,7 @@ async def get_transactions(account_id: UUID, session: Session = Depends(get_sess
             for transaction in transactions
         ],
     }
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
