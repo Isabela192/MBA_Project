@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "dependencies for my MBA project"
 authors = ["Isabela Siqueira <isabela7011@gmail.com>"]
 readme = "README.md"
-package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -20,8 +19,16 @@ sqlmodel = "^0.0.22"
 psycopg2-binary = "^2.9.10"
 autoflake = "^2.3.1"
 pytest = "^8.3.5"
+httpx = "^0.28.1"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".",
+  "src"
+]
+testpaths = ["test"]
