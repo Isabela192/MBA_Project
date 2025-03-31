@@ -4,7 +4,6 @@ from sqlmodel import Session, select
 from decimal import Decimal
 from uuid import uuid4, UUID
 from pydantic import BaseModel, Field
-import uvicorn
 
 from db_sqlite.database import get_session, create_db_and_tables
 from db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
@@ -252,5 +251,5 @@ async def get_transactions(account_id: UUID, session: Session = Depends(get_sess
     }
 
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="0.0.0.0", port=8000)

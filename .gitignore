@@ -5,3 +5,4 @@ claude.py
 /solid_app/src/db_sqlite/__pycache__
 /solid_app/__pycache__
 /solid_app/test/__pycache__
+/solid_app/src/__pycache__
