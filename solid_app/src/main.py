@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
     yield
     print("Shutting down...")
 
+
 app = FastAPI(lifespan=lifespan)
 
 

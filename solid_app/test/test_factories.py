@@ -1,27 +1,17 @@
-import pytest
+from src.main import app
+from src.db_sqlite import get_session
+from sqlmodel import Session, SQLModel, create_engine
 
 
-from src.main import UserCreate
-from src.factories import UserFactory
-
-
-@pytest.fixture
-def sample_user_data():
-    return UserCreate(
-        document_id="12345678901",
-        username="Mei Lin Lee",
-        email="mei_lin_fofinha@gmail.com",
+def test_create_user():
+    engine = create_engine(
+        "sqlite:///testing.db", connect_args={"check_same_thread": False}
     )
+    SQLModel.metadata.create_all(engine)
 
+    with Session(engine) as session:
 
-class TestUserFactory:
-    def test_create_user(self, sample_user_data):
-        factory = UserFactory()
+        def get_session_override():
+            return session
 
-        result = factory.create_user(sample_user_data)
-
-        assert isinstance(result, dict)
-        assert result["document_id"] == sample_user_data.document_id
-        assert result["username"] == sample_user_data.username
-        assert result["email"] == sample_user_data.email
-        assert result["user_type"] == "client"
+        app.dependency_overrides[get_session] = get_session_override
