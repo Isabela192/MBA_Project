@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlmodel import Session, select
 from decimal import Decimal
@@ -12,19 +13,26 @@ from commands import DepositComand, TransferCommand, WithdrawCommand
 from proxies import AccountProxy, RealAccount
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting up...")
+    create_db_and_tables()
+    yield
+    print("Shutting down...")
+
+app = FastAPI(lifespan=lifespan)
 
 
 class UserCreate(BaseModel):
-    document_id: str = Field(..., example="12345678901")
-    name: str = Field(..., example="John Doe")
-    email: str = Field(..., example="john.doe@email.com")
-    username: str = Field(..., example="johndoe123")
+    document_id: str = Field(json_schema_extra={"example": "12345678901"})
+    name: str = Field(json_schema_extra={"example": "John Doe"})
+    email: str = Field(json_schema_extra={"example": "jhon@doe.com.br"})
+    username: str = Field(json_schema_extra={"example": "johndoe123"})
 
 
 class AccountCreate(BaseModel):
-    document_id: str = Field(..., example="12345678901")
-    account_type: str = Field(..., example="checking")
+    document_id: str = Field(json_schema_extra={"example": "12345678901"})
+    account_type: str = Field(json_schema_extra={"example": "checking"})
 
 
 class DepositRquest(BaseModel):
@@ -38,11 +46,6 @@ class WithdrawRequest(BaseModel):
 class TransferRequest(BaseModel):
     to_account_id: str
     amount: Decimal = Field(gt=0)
-
-
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
 
 
 @app.get("/")
