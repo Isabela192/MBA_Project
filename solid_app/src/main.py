@@ -1,16 +1,17 @@
+# TODO: Fix the imports so the application can be tested and keep running with uvicorn
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlmodel import Session, select
 from decimal import Decimal
 from uuid import uuid4, UUID
 from pydantic import BaseModel, Field
-import uvicorn
 
-from db_sqlite.database import get_session, create_db_and_tables
-from db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
-from factories import ClientFactory, ManagerFactory
-from commands import DepositComand, TransferCommand, WithdrawCommand
-from proxies import AccountProxy, RealAccount
+from .db_sqlite.database import get_session, create_db_and_tables
+from .db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
+from .factories import ClientFactory, ManagerFactory
+from .commands import DepositComand, TransferCommand, WithdrawCommand
+from .proxies import AccountProxy, RealAccount
 
 
 @asynccontextmanager
@@ -54,6 +55,23 @@ async def root():
     return {"message": "Welcome to the Bank API with SQLModel using SOLID Principles"}
 
 
+@app.get("/users/")
+async def get_users(session: Session = Depends(get_session)):
+    statement = select(User)
+    users = session.exec(statement).all()
+    return [
+        {
+            "user_id": user.id,
+            "account_id": user.account_id,
+            "username": user.username,
+            "email": user.email,
+            "user_type": user.user_type,
+            "created_at": user.created_at,
+        }
+        for user in users
+    ]
+
+
 @app.post("/users/", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
@@ -75,23 +93,6 @@ async def create_user(
         "user_type": user.user_type,
         "created_at": user.created_at,
     }
-
-
-@app.get("/users/")
-async def get_users(session: Session = Depends(get_session)):
-    statement = select(User)
-    users = session.exec(statement).all()
-    return [
-        {
-            "user_id": user.id,
-            "account_id": user.account_id,
-            "username": user.username,
-            "email": user.email,
-            "user_type": user.user_type,
-            "created_at": user.created_at,
-        }
-        for user in users
-    ]
 
 
 @app.post("/accounts/", status_code=status.HTTP_201_CREATED)
@@ -250,7 +251,3 @@ async def get_transactions(account_id: UUID, session: Session = Depends(get_sess
             for transaction in transactions
         ],
     }
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)

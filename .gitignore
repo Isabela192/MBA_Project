@@ -2,6 +2,4 @@ no_solid_app/database.db
 solid_app/database.db
 claude.py
 .ruff_cache
-/solid_app/src/db_sqlite/__pycache__
-/solid_app/__pycache__
-/solid_app/test/__pycache__
+/testing.db

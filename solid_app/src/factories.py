@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 from sqlmodel import Session
-from db_sqlite.database import get_session
-from db_sqlite.models import User, UserType
+from .db_sqlite.database import get_session
+from .db_sqlite.models import User, UserType
 from fastapi import Depends
 
 # Factory Method Pattern
