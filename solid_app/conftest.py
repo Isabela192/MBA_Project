@@ -30,7 +30,6 @@ SQLModel.metadata.create_all(engine)
 def db_session():
     with Session(engine) as session:
         yield session
-        # Rollback changes made by test
         session.rollback()
 
 
