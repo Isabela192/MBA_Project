@@ -1,5 +1,10 @@
 # TODO: Fix the imports so the application can be tested and keep running with uvicorn
 
+<<<<<<< Updated upstream
+=======
+# TODO: Fix the imports so the application can be tested and keep running with uvicorn
+
+>>>>>>> Stashed changes
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlmodel import Session, select
@@ -9,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from .db_sqlite.database import get_session, create_db_and_tables
 from .db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
-from .factories import ClientFactory, ManagerFactory
+from .factories import ClientFactory, ManagerFactory, SavingsAccountFactory, CheckingAccountFactory 
 from .commands import DepositComand, TransferCommand, WithdrawCommand
 from .proxies import AccountProxy, RealAccount
 
@@ -85,6 +90,7 @@ async def create_user(
 
     factory = ClientFactory() if user_type == "client" else ManagerFactory()
     user = factory.create_user(user_data.model_dump(), session)
+<<<<<<< Updated upstream
     return {
         "user_id": user.id,
         "account_id": user.account_id,
@@ -93,6 +99,9 @@ async def create_user(
         "user_type": user.user_type,
         "created_at": user.created_at,
     }
+=======
+    return user.model_dump()
+>>>>>>> Stashed changes
 
 
 @app.post("/accounts/", status_code=status.HTTP_201_CREATED)
@@ -104,20 +113,11 @@ async def create_account(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid account type. Must be checking or savings",
         )
+    
+    factory = SavingsAccountFactory() if account_data.account_type == "savings" else CheckingAccountFactory()
+    account = factory.create_account(account_data.model_dump(), session)
 
-    account = Account(
-        account_id=uuid4(),
-        document_id=account_data.document_id,
-        account_type=AccountType(account_data.account_type),
-        balance=Decimal("0"),
-        status=AccountStatus.ACTIVE,
-    )
-
-    session.add(account)
-    session.commit()
-    session.refresh(account)
     return account.model_dump()
-
 
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(

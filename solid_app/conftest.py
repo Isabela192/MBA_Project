@@ -49,3 +49,19 @@ def client(db_session):
         yield test_client
 
     app.dependency_overrides.clear()
+
+@pytest.fixture
+def client_user():
+    return {
+        "document_id": "12345678901",
+        "username": "Lucky Luke",
+        "email": "lucky_mail@example.com"
+    }
+
+@pytest.fixture
+def manager_user():
+    return {
+        "document_id": "2137982347",
+        "username": "Nala Lee",
+        "email": "nala_mail@example.com"
+    }
