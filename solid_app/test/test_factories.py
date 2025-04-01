@@ -1,6 +1,6 @@
 from uuid import UUID
-from src.factories import ClientFactory
-from src.db_sqlite.models import User, UserType
+from solid_app.src.factories import ClientFactory
+from solid_app.src.db_sqlite.models import User, UserType
 
 
 class TestClientFactory:
