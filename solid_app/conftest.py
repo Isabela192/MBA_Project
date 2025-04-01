@@ -10,6 +10,7 @@ from sqlmodel.pool import StaticPool
 from solid_app.src.main import app
 from solid_app.src.db_sqlite.database import get_session
 from unittest.mock import MagicMock
+from decimal import Decimal
 
 pyproject_root = Path(__file__).parent
 sys.path.insert(0, str(pyproject_root))
@@ -49,3 +50,27 @@ def client(db_session):
         yield test_client
 
     app.dependency_overrides.clear()
+
+@pytest.fixture
+def client_user():
+    return {
+        "document_id": "12345678901",
+        "username": "Lucky Luke",
+        "email": "lucky_mail@example.com",
+    } 
+
+@pytest.fixture
+def manager_user():
+    return {
+        "document_id": "2137982347",
+        "username": "Nala Lee",
+        "email": "nala_mail@example.com",
+    } 
+
+@pytest.fixture
+def account_data():
+    return {
+        "document_id": "12345678901",
+        "balance": Decimal("0"),
+        "account_type": "savings"
+    }
