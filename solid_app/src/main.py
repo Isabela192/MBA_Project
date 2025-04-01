@@ -5,11 +5,11 @@ from decimal import Decimal
 from uuid import uuid4, UUID
 from pydantic import BaseModel, Field
 
-from db_sqlite.database import get_session, create_db_and_tables
-from db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
-from factories import ClientFactory, ManagerFactory
-from commands import DepositComand, TransferCommand, WithdrawCommand
-from proxies import AccountProxy, RealAccount
+from .db_sqlite.database import get_session, create_db_and_tables
+from .db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
+from .factories import ClientFactory, ManagerFactory
+from .commands import DepositComand, TransferCommand, WithdrawCommand
+from .proxies import AccountProxy, RealAccount
 
 
 @asynccontextmanager

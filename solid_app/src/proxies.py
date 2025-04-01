@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from sqlmodel import Session, select
-from db_sqlite.models import Account
+from .db_sqlite.models import Account
 from datetime import datetime
 from uuid import UUID
 from typing import List, Dict, Any, Optional
