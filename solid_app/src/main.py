@@ -1,10 +1,5 @@
 # TODO: Fix the imports so the application can be tested and keep running with uvicorn
 
-<<<<<<< Updated upstream
-=======
-# TODO: Fix the imports so the application can be tested and keep running with uvicorn
-
->>>>>>> Stashed changes
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlmodel import Session, select
@@ -90,18 +85,7 @@ async def create_user(
 
     factory = ClientFactory() if user_type == "client" else ManagerFactory()
     user = factory.create_user(user_data.model_dump(), session)
-<<<<<<< Updated upstream
-    return {
-        "user_id": user.id,
-        "account_id": user.account_id,
-        "username": user.username,
-        "email": user.email,
-        "user_type": user.user_type,
-        "created_at": user.created_at,
-    }
-=======
     return user.model_dump()
->>>>>>> Stashed changes
 
 
 @app.post("/accounts/", status_code=status.HTTP_201_CREATED)
