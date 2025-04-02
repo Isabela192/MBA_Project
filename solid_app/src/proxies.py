@@ -47,10 +47,10 @@ class RealAccount(AccountInterface):
 class AccountProxy(AccountInterface):
     def __init__(self, real_account: RealAccount):
         self.real_account = real_account
-        self.acces_log: List[Dict[str, Any]] = []
+        self.access_log: List[Dict[str, Any]] = []
 
     def get_balance(self, account_id: UUID, session: Session) -> Optional[Decimal]:
-        self.acces_log.append(
+        self.access_log.append(
             {
                 "account_id": account_id,
                 "action": "get_balance",
@@ -62,7 +62,7 @@ class AccountProxy(AccountInterface):
     def update_balance(
         self, account_id: UUID, amount: Decimal, session: Session
     ) -> bool:
-        self.acces_log.append(
+        self.access_log.append(
             {
                 "account_id": account_id,
                 "action": "update_balance",

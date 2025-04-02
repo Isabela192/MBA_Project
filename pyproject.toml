@@ -29,7 +29,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 pythonpath = [
-  ".",
-  "src"
+  "."
 ]
-testpaths = ["test"]
+testpaths = ["solid_app/test"]

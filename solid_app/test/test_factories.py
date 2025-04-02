@@ -4,22 +4,16 @@ from solid_app.src.db_sqlite.models import User, UserType
 from decimal import Decimal
 
 
-def test_client_factory_create_user(mock_session):
+def test_client_factory_create_user(client_user, mock_session):
     """Test that ClientFactory creates a user with CLIENT type and is_staff=False."""
     factory = ClientFactory()
-    user_data = {
-        "document_id": "12345678901",
-        "username": "testclient",
-        "email": "test@example.com",
-        "name": "Test Client"
-    }
     
     def side_effect(user):
         return user
     
     mock_session.refresh.side_effect = side_effect
     
-    user = factory.create_user(user_data, mock_session)
+    user = factory.create_user(client_user, mock_session)
     
     mock_session.add.assert_called_once()
     mock_session.commit.assert_called_once()
@@ -28,8 +22,8 @@ def test_client_factory_create_user(mock_session):
     assert user.user_type == UserType.CLIENT
     assert user.is_staff is False
     assert user.document_id == "12345678901"
-    assert user.username == "testclient"
-    assert user.email == "test@example.com"
+    assert user.username == "Lucky Luke"
+    assert user.email == "lucky_mail@example.com"
 
 def test_manager_factory_create_user(mock_session):
     """Test that ManagerFactory creates a user with MANAGER type and is_staff=True."""

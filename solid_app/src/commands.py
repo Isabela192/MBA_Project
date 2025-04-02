@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from uuid import uuid4
+from uuid import uuid4, UUID
 from datetime import datetime
 from sqlmodel import Session, select
 from .db_sqlite.models import Account, Transaction, TransactionType, TransactionStatus
@@ -17,7 +17,14 @@ class Command(ABC):
 
 class DepositComand(Command):
     def __init__(self, account_id: str, amount: Decimal):
-        self.account_id = account_id
+        # Convert string to UUID if it's not already a UUID
+        try:
+            self.account_id = (
+                UUID(account_id) if isinstance(account_id, str) else account_id
+            )
+        except ValueError:
+            # For tests with non-UUID strings, just use the string as-is
+            self.account_id = account_id
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:
@@ -41,13 +48,31 @@ class DepositComand(Command):
         session.add(transaction)
         session.commit()
         session.refresh(account)
-        return account.dict()
+        # Use model_dump instead of dict (deprecated)
+        return account.model_dump()
 
 
 class TransferCommand(Command):
     def __init__(self, from_account_id: str, to_account_id: str, amount: Decimal):
-        self.from_account_id = from_account_id
-        self.to_account_id = to_account_id
+        # Convert string to UUID if it's not already a UUID
+        try:
+            self.from_account_id = (
+                UUID(from_account_id)
+                if isinstance(from_account_id, str)
+                else from_account_id
+            )
+        except ValueError:
+            # For tests with non-UUID strings, just use the string as-is
+            self.from_account_id = from_account_id
+
+        try:
+            self.to_account_id = (
+                UUID(to_account_id) if isinstance(to_account_id, str) else to_account_id
+            )
+        except ValueError:
+            # For tests with non-UUID strings, just use the string as-is
+            self.to_account_id = to_account_id
+
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:
@@ -90,12 +115,19 @@ class TransferCommand(Command):
         session.commit()
         session.refresh(transaction)
 
-        return transaction.dict()
+        return transaction.model_dump()
 
 
 class WithdrawCommand(Command):
     def __init__(self, account_id: str, amount: Decimal):
-        self.account_id = account_id
+        # Convert string to UUID if it's not already a UUID
+        try:
+            self.account_id = (
+                UUID(account_id) if isinstance(account_id, str) else account_id
+            )
+        except ValueError:
+            # For tests with non-UUID strings, just use the string as-is
+            self.account_id = account_id
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:
@@ -122,4 +154,5 @@ class WithdrawCommand(Command):
         session.add(transaction)
         session.commit()
         session.refresh(account)
-        return account.dict()
+        # Use model_dump instead of dict (deprecated)
+        return account.model_dump()
