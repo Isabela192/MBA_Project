@@ -53,6 +53,7 @@ def client(db_session):
 @pytest.fixture
 def client_user():
     return {
+        "user_id": 1,
         "document_id": "12345678901",
         "username": "Lucky Luke",
         "email": "lucky_mail@example.com"

@@ -3,11 +3,7 @@ from typing import Dict, Any
 from uuid import uuid4
 from sqlmodel import Session
 from .db_sqlite.database import get_session
-<<<<<<< Updated upstream
-from .db_sqlite.models import User, UserType
-=======
 from .db_sqlite.models import User, UserType, Account, AccountType, AccountStatus
->>>>>>> Stashed changes
 from fastapi import Depends
 from decimal import Decimal
 
