@@ -1,6 +1,7 @@
 from uuid import UUID
 from solid_app.src.factories import ClientFactory, ManagerFactory
 from solid_app.src.db_sqlite.models import User, UserType
+from decimal import Decimal
 
 
 def test_client_factory_create_user(mock_session):
