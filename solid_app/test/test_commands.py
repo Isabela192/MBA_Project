@@ -3,14 +3,14 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-from solid_app.src.commands import DepositComand, WithdrawCommand, TransferCommand
-from solid_app.src.db_sqlite.models import (
+from helpers.commands import DepositCommand, WithdrawCommand, TransferCommand
+from database.models import (
     Account,
     Transaction,
     AccountType,
     AccountStatus,
 )
-from solid_app.src.db_sqlite.models import TransactionType, TransactionStatus
+from database.models import TransactionType, TransactionStatus
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ class TestDepositCommand:
         # Arrange
         amount = Decimal("500.0")
         mock_session.exec.return_value.first.return_value = mock_account
-        command = DepositComand(str(mock_account.account_id), amount)
+        command = DepositCommand(str(mock_account.account_id), amount)
 
         # Act
         result = command.execute(mock_session)
@@ -82,7 +82,7 @@ class TestDepositCommand:
         """Test deposit to non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = DepositComand("non-existent-id", Decimal("500.0"))
+        command = DepositCommand("non-existent-id", Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
@@ -276,7 +276,7 @@ class TestCommandsIntegration:
         amount = Decimal("500.0")
 
         # Act
-        command = DepositComand(str(account.account_id), amount)
+        command = DepositCommand(str(account.account_id), amount)
         result = command.execute(db_session)
 
         # Assert
