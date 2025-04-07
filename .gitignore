@@ -3,3 +3,4 @@ solid_app/database.db
 claude.py
 .ruff_cache
 /testing.db
+solid_app/.coverage
