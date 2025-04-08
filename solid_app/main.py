@@ -1,17 +1,20 @@
-# TODO: Fix the imports so the application can be tested and keep running with uvicorn
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlmodel import Session, select
 from decimal import Decimal
-from uuid import uuid4, UUID
+from uuid import UUID
 from pydantic import BaseModel, Field
 
-from .db_sqlite.database import get_session, create_db_and_tables
-from .db_sqlite.models import User, Account, Transaction, AccountType, AccountStatus
-from .factories import ClientFactory, ManagerFactory, SavingsAccountFactory, CheckingAccountFactory 
-from .commands import DepositComand, TransferCommand, WithdrawCommand
-from .proxies import AccountProxy, RealAccount
+from database.database import get_session, create_db_and_tables
+from database.models import User, Account, Transaction
+from helpers.factories import (
+    ClientFactory,
+    ManagerFactory,
+    SavingsAccountFactory,
+    CheckingAccountFactory,
+)
+from helpers.commands import DepositCommand, TransferCommand, WithdrawCommand
+from helpers.proxies import AccountProxy, RealAccount
 
 
 @asynccontextmanager
@@ -37,7 +40,7 @@ class AccountCreate(BaseModel):
     account_type: str = Field(json_schema_extra={"example": "checking"})
 
 
-class DepositRquest(BaseModel):
+class DepositRequest(BaseModel):
     amount: Decimal = Field(gt=0)
 
 
@@ -97,19 +100,24 @@ async def create_account(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid account type. Must be checking or savings",
         )
-    
-    factory = SavingsAccountFactory() if account_data.account_type == "savings" else CheckingAccountFactory()
+
+    factory = (
+        SavingsAccountFactory()
+        if account_data.account_type == "savings"
+        else CheckingAccountFactory()
+    )
     account = factory.create_account(account_data.model_dump(), session)
 
     return account.model_dump()
 
+
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(
     account_id: str,
-    deposit_request: DepositRquest,
+    deposit_request: DepositRequest,
     session: Session = Depends(get_session),
 ):
-    command = DepositComand(account_id=str(account_id), amount=deposit_request.amount)
+    command = DepositCommand(account_id=str(account_id), amount=deposit_request.amount)
     transaction = command.execute(session)
 
     if transaction.get("status") == "failed":

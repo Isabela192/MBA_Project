@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import uuid4, UUID
 from datetime import datetime
 from sqlmodel import Session, select
-from .db_sqlite.models import Account, Transaction, TransactionType, TransactionStatus
+from database.models import Account, Transaction, TransactionType, TransactionStatus
 from typing import Dict, Any
 
 # Command Pattern
@@ -15,7 +15,7 @@ class Command(ABC):
         pass
 
 
-class DepositComand(Command):
+class DepositCommand(Command):
     def __init__(self, account_id: str, amount: Decimal):
         # Convert string to UUID if it's not already a UUID
         try:
