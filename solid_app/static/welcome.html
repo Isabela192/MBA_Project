@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLID Bank - API Bancária</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .welcome-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .hero {
+            background-color: #0066cc;
+            color: white;
+            padding: 40px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            color: white;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 25px;
+            opacity: 0.9;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #0066cc;
+        }
+
+        .feature-card h3 {
+            color: #0066cc;
+            margin-bottom: 10px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 2px solid #0066cc;
+            color: #0066cc;
+        }
+
+        .btn:hover {
+            background-color: #0052a3;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(0, 102, 204, 0.1);
+        }
+
+        .docs-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <div class="hero">
+            <h1>SOLID Bank API</h1>
+            <p>Uma aplicação financeira desenvolvida com princípios SOLID e padrões de projeto</p>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>Padrões de Criação</h3>
+                <p>Factory Method para criação de usuários e contas bancárias, garantindo a extensibilidade do sistema.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Padrões Estruturais</h3>
+                <p>Proxy Pattern para controle de acesso e logging nas operações de contas bancárias.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Padrões Comportamentais</h3>
+                <p>Command Pattern para operações financeiras como depósitos, saques e transferências.</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="/users/create" class="btn">Criar Usuário</a>
+            <a href="/docs" class="btn btn-secondary">Documentação API</a>
+        </div>
+
+        <div class="docs-section">
+            <h2>Sobre o Projeto</h2>
+            <p>Este projeto demonstra a aplicação de princípios SOLID e padrões de projeto no desenvolvimento de uma aplicação financeira. A arquitetura foi projetada para maximizar a manutenibilidade, testabilidade e extensibilidade do código.</p>
+            
+            <h3>Endpoints Principais</h3>
+            <ul>
+                <li><code>GET /users/</code> - Listar todos os usuários</li>
+                <li><code>POST /users/</code> - Criar novo usuário</li>
+                <li><code>POST /accounts/</code> - Criar nova conta bancária</li>
+                <li><code>POST /accounts/{account_id}/deposit</code> - Realizar depósito</li>
+                <li><code>POST /accounts/{account_id}/withdraw</code> - Realizar saque</li>
+                <li><code>POST /accounts/{account_id}/transfer</code> - Realizar transferência</li>
+            </ul>
+            
+            <h3>Tecnologias Utilizadas</h3>
+            <ul>
+                <li>FastAPI e SQLModel para o backend</li>
+                <li>React para interfaces de usuário</li>
+                <li>SQLite para persistência de dados</li>
+            </ul>
+        </div>
+
+        <footer class="form-footer">
+            <p>Projeto de Pesquisa - Trabalho de Conclusão de Curso</p>
+            <p>Engenharia de Software - &copy; SOLID Bank 2024</p>
+        </footer>
+    </div>
+</body>
+</html>
