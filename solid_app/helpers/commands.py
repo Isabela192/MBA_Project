@@ -48,7 +48,6 @@ class DepositCommand(Command):
         session.add(transaction)
         session.commit()
         session.refresh(account)
-        # Use model_dump instead of dict (deprecated)
         return account.model_dump()
 
 

@@ -7,12 +7,7 @@ from pydantic import BaseModel, Field
 
 from database.database import get_session, create_db_and_tables
 from database.models import User, Account, Transaction
-from helpers.factories import (
-    ClientFactory,
-    ManagerFactory,
-    SavingsAccountFactory,
-    CheckingAccountFactory,
-)
+from helpers.factories import ClientFactory, ManagerFactory
 from helpers.commands import DepositCommand, TransferCommand, WithdrawCommand
 from helpers.proxies import AccountProxy, RealAccount
 
@@ -36,7 +31,6 @@ class UserCreate(BaseModel):
 
 
 class AccountCreate(BaseModel):
-    document_id: str = Field(json_schema_extra={"example": "12345678901"})
     account_type: str = Field(json_schema_extra={"example": "checking"})
 
 
@@ -78,6 +72,7 @@ async def get_users(session: Session = Depends(get_session)):
 @app.post("/users/", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
+    account_data: AccountCreate,
     user_type: str = "client",
     session: Session = Depends(get_session),
 ):
@@ -88,27 +83,17 @@ async def create_user(
 
     factory = ClientFactory() if user_type == "client" else ManagerFactory()
     user = factory.create_user(user_data.model_dump(), session)
-    return user.model_dump()
-
-
-@app.post("/accounts/", status_code=status.HTTP_201_CREATED)
-async def create_account(
-    account_data: AccountCreate, session: Session = Depends(get_session)
-):
-    if account_data.account_type not in ["checking", "savings"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid account type. Must be checking or savings",
-        )
-
-    factory = (
-        SavingsAccountFactory()
-        if account_data.account_type == "savings"
-        else CheckingAccountFactory()
+    account = factory.create_user_account(
+        user=user, account_data=account_data.model_dump(), session=session
     )
-    account = factory.create_account(account_data.model_dump(), session)
 
-    return account.model_dump()
+    return {
+        "user_id": user.id,
+        "account_id": user.account_id,
+        "username": user.username,
+        "account_type": account.account_type,
+        "balance": account.balance,
+    }
 
 
 @app.post("/accounts/{account_id}/deposit")
@@ -117,7 +102,7 @@ async def deposit(
     deposit_request: DepositRequest,
     session: Session = Depends(get_session),
 ):
-    command = DepositCommand(account_id=str(account_id), amount=deposit_request.amount)
+    command = DepositCommand(account_id=account_id, amount=deposit_request.amount)
     transaction = command.execute(session)
 
     if transaction.get("status") == "failed":
@@ -243,3 +228,22 @@ async def get_transactions(account_id: UUID, session: Session = Depends(get_sess
             for transaction in transactions
         ],
     }
+
+
+@app.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    statement = select(User).where(User.id == user_id)
+    user = session.exec(statement).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found",
+        )
+
+    session.delete(user)
+    session.commit()
+    return {"message": "User deleted successfully"}

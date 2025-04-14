@@ -55,7 +55,6 @@ class Account(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     account_id: UUID = Field(default_factory=uuid4, index=True, unique=True)
-    document_id: str = Field(max_length=14, index=True, unique=True)
     balance: Decimal = Field(default=Decimal("0"))
     account_type: AccountType
     status: AccountStatus = Field(default=AccountStatus.ACTIVE)
