@@ -43,7 +43,7 @@ class WithdrawRequest(BaseModel):
 
 
 class TransferRequest(BaseModel):
-    to_account_id: str
+    to_account_id: UUID
     amount: Decimal = Field(gt=0)
 
 
@@ -56,17 +56,34 @@ async def root():
 async def get_users(session: Session = Depends(get_session)):
     statement = select(User)
     users = session.exec(statement).all()
-    return [
-        {
+    # Get all users with their accounts
+    result = []
+    for user in users:
+        user_data = {
             "user_id": user.id,
-            "account_id": user.account_id,
             "username": user.username,
             "email": user.email,
             "user_type": user.user_type,
             "created_at": user.created_at,
+            "accounts": [],
         }
-        for user in users
-    ]
+
+        # Get accounts for each user
+        statement = select(Account).where(Account.user_id == user.id)
+        accounts = session.exec(statement).all()
+        for account in accounts:
+            user_data["accounts"].append(
+                {
+                    "account_id": str(account.account_id),
+                    "account_type": account.account_type,
+                    "balance": str(account.balance),
+                    "status": account.status,
+                }
+            )
+
+        result.append(user_data)
+
+    return result
 
 
 @app.post("/users/", status_code=status.HTTP_201_CREATED)
@@ -89,16 +106,18 @@ async def create_user(
 
     return {
         "user_id": user.id,
-        "account_id": user.account_id,
         "username": user.username,
-        "account_type": account.account_type,
-        "balance": account.balance,
+        "account": {
+            "account_id": str(account.account_id),
+            "account_type": account.account_type,
+            "balance": str(account.balance),
+        },
     }
 
 
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(
-    account_id: str,
+    account_id: UUID,  # Accept UUID directly to ensure proper validation
     deposit_request: DepositRequest,
     session: Session = Depends(get_session),
 ):
@@ -119,13 +138,11 @@ async def deposit(
 
 @app.post("/accounts/{account_id}/withdraw")
 async def withdraw(
-    account_id: str,
+    account_id: UUID,  # Accept UUID directly to ensure proper validation
     withdraw_request: WithdrawRequest,
     session: Session = Depends(get_session),
 ):
-    command = WithdrawCommand(
-        account_id=str(account_id), amount=withdraw_request.amount
-    )
+    command = WithdrawCommand(account_id=account_id, amount=withdraw_request.amount)
     transaction = command.execute(session)
 
     if transaction.get("status") == "failed":
@@ -142,12 +159,12 @@ async def withdraw(
 
 @app.post("/accounts/{account_id}/transfer")
 async def transfer(
-    account_id: str,
+    account_id: UUID,  # Accept UUID directly to ensure proper validation
     transfer_request: TransferRequest,
     session: Session = Depends(get_session),
 ):
     command = TransferCommand(
-        from_account_id=str(account_id),
+        from_account_id=account_id,
         to_account_id=transfer_request.to_account_id,
         amount=transfer_request.amount,
     )
@@ -171,7 +188,7 @@ async def transfer(
 
 
 @app.get("/accounts/{account_id}/balance")
-async def get_balance(account_id: str, session: Session = Depends(get_session)):
+async def get_balance(account_id: UUID, session: Session = Depends(get_session)):
     real_account = RealAccount()
     proxy = AccountProxy(real_account)
     balance = proxy.get_balance(account_id, session)

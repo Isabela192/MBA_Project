@@ -17,14 +17,18 @@ class Command(ABC):
 
 class DepositCommand(Command):
     def __init__(self, account_id: str, amount: Decimal):
-        # Convert string to UUID if it's not already a UUID
+        # Always convert string to UUID for querying
         try:
+            # Ensure we have a valid UUID
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.account_id = account_id
+        except ValueError as e:
+            # Better error message
+            raise ValueError(
+                f"Invalid account_id format. Expected UUID, got: {account_id}"
+            ) from e
+
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:
@@ -53,24 +57,26 @@ class DepositCommand(Command):
 
 class TransferCommand(Command):
     def __init__(self, from_account_id: str, to_account_id: str, amount: Decimal):
-        # Convert string to UUID if it's not already a UUID
+        # Always convert string to UUID for querying
         try:
             self.from_account_id = (
                 UUID(from_account_id)
                 if isinstance(from_account_id, str)
                 else from_account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.from_account_id = from_account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid from_account_id format. Expected UUID, got: {from_account_id}"
+            ) from e
 
         try:
             self.to_account_id = (
                 UUID(to_account_id) if isinstance(to_account_id, str) else to_account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.to_account_id = to_account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid to_account_id format. Expected UUID, got: {to_account_id}"
+            ) from e
 
         self.amount = amount
 
@@ -119,14 +125,16 @@ class TransferCommand(Command):
 
 class WithdrawCommand(Command):
     def __init__(self, account_id: str, amount: Decimal):
-        # Convert string to UUID if it's not already a UUID
+        # Always convert string to UUID for querying
         try:
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.account_id = account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid account_id format. Expected UUID, got: {account_id}"
+            ) from e
+
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:

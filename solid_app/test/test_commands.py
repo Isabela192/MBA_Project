@@ -82,13 +82,18 @@ class TestDepositCommand:
         """Test deposit to non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = DepositCommand("non-existent-id", Decimal("500.0"))
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
+        command = DepositCommand(nonexistent_uuid, Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "Account non-existent-id not found" in str(excinfo.value)
+        assert "Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -119,13 +124,18 @@ class TestWithdrawCommand:
         """Test withdrawal from non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = WithdrawCommand("non-existent-id", Decimal("500.0"))
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
+        command = WithdrawCommand(nonexistent_uuid, Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "Account non-existent-id not found" in str(excinfo.value)
+        assert "Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -181,13 +191,19 @@ class TestTransferCommand:
         """Test transfer from non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = TransferCommand("non-existent-id", "valid-id", Decimal("500.0"))
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
+        valid_uuid = UUID("11111111-1111-1111-1111-111111111111")
+        command = TransferCommand(nonexistent_uuid, valid_uuid, Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "From Account non-existent-id not found" in str(excinfo.value)
+        assert "From Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -195,15 +211,20 @@ class TestTransferCommand:
         """Test transfer to non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.side_effect = [mock_account, None]
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
         command = TransferCommand(
-            str(mock_account.account_id), "non-existent-id", Decimal("500.0")
+            mock_account.account_id, nonexistent_uuid, Decimal("500.0")
         )
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "To Account non-existent-id not found" in str(excinfo.value)
+        assert "To Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
