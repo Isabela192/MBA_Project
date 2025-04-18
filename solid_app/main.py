@@ -6,14 +6,14 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from database.database import get_session, create_db_and_tables
-from database.models import User, Account, Transaction
-from helpers.factories import (
-    ClientFactory,
-    ManagerFactory,
-    SavingsAccountFactory,
-    CheckingAccountFactory,
+from database.models import User, Account
+from helpers.factories import ClientFactory, ManagerFactory
+from helpers.commands import (
+    DepositCommand,
+    TransferCommand,
+    WithdrawCommand,
+    GetTransactionsCommand,
 )
-from helpers.commands import DepositCommand, TransferCommand, WithdrawCommand
 from helpers.proxies import AccountProxy, RealAccount
 
 
@@ -36,7 +36,6 @@ class UserCreate(BaseModel):
 
 
 class AccountCreate(BaseModel):
-    document_id: str = Field(json_schema_extra={"example": "12345678901"})
     account_type: str = Field(json_schema_extra={"example": "checking"})
 
 
@@ -49,7 +48,7 @@ class WithdrawRequest(BaseModel):
 
 
 class TransferRequest(BaseModel):
-    to_account_id: str
+    to_account_id: UUID
     amount: Decimal = Field(gt=0)
 
 
@@ -62,17 +61,34 @@ async def root():
 async def get_users(session: Session = Depends(get_session)):
     statement = select(User)
     users = session.exec(statement).all()
-    return [
-        {
+    # Get all users with their accounts
+    result = []
+    for user in users:
+        user_data = {
             "user_id": user.id,
-            "account_id": user.account_id,
             "username": user.username,
             "email": user.email,
             "user_type": user.user_type,
             "created_at": user.created_at,
+            "accounts": [],
         }
-        for user in users
-    ]
+
+        # Get accounts for each user
+        statement = select(Account).where(Account.user_id == user.id)
+        accounts = session.exec(statement).all()
+        for account in accounts:
+            user_data["accounts"].append(
+                {
+                    "account_id": str(account.account_id),
+                    "account_type": account.account_type,
+                    "balance": str(account.balance),
+                    "status": account.status,
+                }
+            )
+
+        result.append(user_data)
+
+    return result
 
 
 @app.post("/users/", status_code=status.HTTP_201_CREATED)
@@ -80,6 +96,7 @@ async def create_user(
     user_data: UserCreate,
     user_type: str = "client",
     session: Session = Depends(get_session),
+    account_data: AccountCreate = None,
 ):
     if user_type not in ["client", "manager"]:
         raise HTTPException(
@@ -88,36 +105,33 @@ async def create_user(
 
     factory = ClientFactory() if user_type == "client" else ManagerFactory()
     user = factory.create_user(user_data.model_dump(), session)
-    return user.model_dump()
 
+    # Create a default checking account if none provided
+    if account_data is None:
+        account_data = AccountCreate(account_type="checking")
 
-@app.post("/accounts/", status_code=status.HTTP_201_CREATED)
-async def create_account(
-    account_data: AccountCreate, session: Session = Depends(get_session)
-):
-    if account_data.account_type not in ["checking", "savings"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid account type. Must be checking or savings",
-        )
-
-    factory = (
-        SavingsAccountFactory()
-        if account_data.account_type == "savings"
-        else CheckingAccountFactory()
+    account = factory.create_user_account(
+        user=user, account_data=account_data.model_dump(), session=session
     )
-    account = factory.create_account(account_data.model_dump(), session)
 
-    return account.model_dump()
+    return {
+        "user_id": user.id,
+        "username": user.username,
+        "account": {
+            "account_id": str(account.account_id),
+            "account_type": account.account_type,
+            "balance": str(account.balance),
+        },
+    }
 
 
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(
-    account_id: str,
+    account_id: UUID,
     deposit_request: DepositRequest,
     session: Session = Depends(get_session),
 ):
-    command = DepositCommand(account_id=str(account_id), amount=deposit_request.amount)
+    command = DepositCommand(account_id=account_id, amount=deposit_request.amount)
     transaction = command.execute(session)
 
     if transaction.get("status") == "failed":
@@ -134,13 +148,11 @@ async def deposit(
 
 @app.post("/accounts/{account_id}/withdraw")
 async def withdraw(
-    account_id: str,
+    account_id: UUID,
     withdraw_request: WithdrawRequest,
     session: Session = Depends(get_session),
 ):
-    command = WithdrawCommand(
-        account_id=str(account_id), amount=withdraw_request.amount
-    )
+    command = WithdrawCommand(account_id=account_id, amount=withdraw_request.amount)
     transaction = command.execute(session)
 
     if transaction.get("status") == "failed":
@@ -157,12 +169,12 @@ async def withdraw(
 
 @app.post("/accounts/{account_id}/transfer")
 async def transfer(
-    account_id: str,
+    account_id: UUID,
     transfer_request: TransferRequest,
     session: Session = Depends(get_session),
 ):
     command = TransferCommand(
-        from_account_id=str(account_id),
+        from_account_id=account_id,
         to_account_id=transfer_request.to_account_id,
         amount=transfer_request.amount,
     )
@@ -186,7 +198,7 @@ async def transfer(
 
 
 @app.get("/accounts/{account_id}/balance")
-async def get_balance(account_id: str, session: Session = Depends(get_session)):
+async def get_balance(account_id: UUID, session: Session = Depends(get_session)):
     real_account = RealAccount()
     proxy = AccountProxy(real_account)
     balance = proxy.get_balance(account_id, session)
@@ -200,46 +212,59 @@ async def get_balance(account_id: str, session: Session = Depends(get_session)):
     return {"balance": balance}
 
 
-@app.get("/accounts/{account_id}/transactions")
-async def get_transactions(account_id: UUID, session: Session = Depends(get_session)):
-    account_statement = (
-        select(Account).join(Account).where(Account.account_id == account_id)
-    )
-    account_transactions = session.exec(account_statement).first()
+class BalanceUpdateRequest(BaseModel):
+    amount: Decimal
 
-    if not account_transactions:
+
+@app.put("/accounts/{account_id}/balance")
+async def update_balance(
+    account_id: UUID,
+    update_request: BalanceUpdateRequest,
+    session: Session = Depends(get_session),
+):
+    real_account = RealAccount()
+    account_proxy = AccountProxy(real_account)
+
+    result = account_proxy.update_balance(account_id, update_request.amount, session)
+
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Account {account_id} not found",
         )
 
-    statement = (
-        select(Transaction)
-        .where(
-            Transaction.from_account_id
-            == account_transactions.id | Transaction.to_account_id
-            == account_transactions.id
+    new_balance = account_proxy.get_balance(account_id, session)
+    return {"message": "Balance updated successfully", "balance": new_balance}
+
+
+@app.get("/accounts/{account_id}/transactions")
+async def get_transactions(account_id: UUID, session: Session = Depends(get_session)):
+    command = GetTransactionsCommand(account_id=str(account_id))
+    result = command.execute(session)
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get("message", f"Account {account_id} not found"),
         )
-        .order_by(Transaction.timestamp)
-    )
 
-    transactions = session.exec(statement).all()
+    return {"account_id": result["account_id"], "transactions": result["transactions"]}
 
-    return {
-        "account_id": account_id,
-        "transactions": [
-            {
-                "transaction_id": str(transaction.transaction_id),
-                "type": transaction.type,
-                "amount": transaction.amount,
-                "status": transaction.status,
-                "timestamp": transaction.timestamp,
-                "direction": (
-                    "OUTGOING"
-                    if transaction.from_account_id == account_transactions.id
-                    else "INCOMING"
-                ),
-            }
-            for transaction in transactions
-        ],
-    }
+
+@app.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    statement = select(User).where(User.id == user_id)
+    user = session.exec(statement).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found",
+        )
+
+    session.delete(user)
+    session.commit()
+    return {"message": "User deleted successfully"}

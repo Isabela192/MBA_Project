@@ -1,6 +1,6 @@
 from uuid import UUID
 from helpers.factories import ClientFactory, ManagerFactory
-from database.models import User, UserType
+from database.models import User, UserType, AccountType
 
 
 def test_client_factory_create_user(client_user, mock_session):
@@ -69,9 +69,13 @@ def test_client_factory_integration(db_session):
 
     # Assert
     assert user.id is not None  # ID should be assigned by the database
-    assert isinstance(user.account_id, UUID)
     assert user.user_type == UserType.CLIENT
     assert user.is_staff is False
+
+    # Create an account for the user and verify it has an account_id
+    account_data = {"account_type": AccountType.CHECKING}
+    account = factory.create_user_account(user, account_data, db_session)
+    assert isinstance(account.account_id, UUID)
 
     # Verify user is in the database
     db_user = db_session.get(User, user.id)

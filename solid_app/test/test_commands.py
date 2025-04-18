@@ -3,7 +3,12 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-from helpers.commands import DepositCommand, WithdrawCommand, TransferCommand
+from helpers.commands import (
+    DepositCommand,
+    WithdrawCommand,
+    TransferCommand,
+    GetTransactionsCommand,
+)
 from database.models import (
     Account,
     Transaction,
@@ -82,13 +87,18 @@ class TestDepositCommand:
         """Test deposit to non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = DepositCommand("non-existent-id", Decimal("500.0"))
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
+        command = DepositCommand(nonexistent_uuid, Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "Account non-existent-id not found" in str(excinfo.value)
+        assert "Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -119,13 +129,18 @@ class TestWithdrawCommand:
         """Test withdrawal from non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = WithdrawCommand("non-existent-id", Decimal("500.0"))
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
+        command = WithdrawCommand(nonexistent_uuid, Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "Account non-existent-id not found" in str(excinfo.value)
+        assert "Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -181,13 +196,19 @@ class TestTransferCommand:
         """Test transfer from non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.return_value = None
-        command = TransferCommand("non-existent-id", "valid-id", Decimal("500.0"))
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
+        valid_uuid = UUID("11111111-1111-1111-1111-111111111111")
+        command = TransferCommand(nonexistent_uuid, valid_uuid, Decimal("500.0"))
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "From Account non-existent-id not found" in str(excinfo.value)
+        assert "From Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -195,15 +216,20 @@ class TestTransferCommand:
         """Test transfer to non-existent account."""
         # Arrange
         mock_session.exec.return_value.first.side_effect = [mock_account, None]
+        nonexistent_uuid = UUID(
+            "00000000-0000-0000-0000-000000000000"
+        )  # Use a valid UUID that won't exist
         command = TransferCommand(
-            str(mock_account.account_id), "non-existent-id", Decimal("500.0")
+            mock_account.account_id, nonexistent_uuid, Decimal("500.0")
         )
 
         # Act & Assert
         with pytest.raises(ValueError) as excinfo:
             command.execute(mock_session)
 
-        assert "To Account non-existent-id not found" in str(excinfo.value)
+        assert "To Account 00000000-0000-0000-0000-000000000000 not found" in str(
+            excinfo.value
+        )
         mock_session.add.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -354,3 +380,36 @@ class TestCommandsIntegration:
         assert result["status"] == TransactionStatus.COMPLETED
         assert result["from_account_id"] == from_account.id
         assert result["to_account_id"] == to_account.id
+
+    def test_get_transactions_integration(self, db_session, test_accounts):
+        """Integration test for get transactions command."""
+        # Arrange
+        account = test_accounts[0]
+
+        # Create some transactions for this account
+        deposit = DepositCommand(str(account.account_id), Decimal("100.0"))
+        deposit.execute(db_session)
+
+        withdraw = WithdrawCommand(str(account.account_id), Decimal("50.0"))
+        withdraw.execute(db_session)
+
+        # Act
+        command = GetTransactionsCommand(str(account.account_id))
+        result = command.execute(db_session)
+
+        # Assert
+        assert result["status"] == "success"
+        assert result["account_id"] == str(account.account_id)
+        assert isinstance(result["transactions"], list)
+        assert (
+            len(result["transactions"]) >= 2
+        )  # At least the deposit and withdraw we just created
+
+        # Verify transactions contain expected fields
+        for transaction in result["transactions"]:
+            assert "transaction_id" in transaction
+            assert "type" in transaction
+            assert "amount" in transaction
+            assert "status" in transaction
+            assert "timestamp" in transaction
+            assert "direction" in transaction
