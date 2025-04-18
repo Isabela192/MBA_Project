@@ -3,7 +3,12 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-from helpers.commands import DepositCommand, WithdrawCommand, TransferCommand
+from helpers.commands import (
+    DepositCommand,
+    WithdrawCommand,
+    TransferCommand,
+    GetTransactionsCommand,
+)
 from database.models import (
     Account,
     Transaction,
@@ -375,3 +380,36 @@ class TestCommandsIntegration:
         assert result["status"] == TransactionStatus.COMPLETED
         assert result["from_account_id"] == from_account.id
         assert result["to_account_id"] == to_account.id
+
+    def test_get_transactions_integration(self, db_session, test_accounts):
+        """Integration test for get transactions command."""
+        # Arrange
+        account = test_accounts[0]
+
+        # Create some transactions for this account
+        deposit = DepositCommand(str(account.account_id), Decimal("100.0"))
+        deposit.execute(db_session)
+
+        withdraw = WithdrawCommand(str(account.account_id), Decimal("50.0"))
+        withdraw.execute(db_session)
+
+        # Act
+        command = GetTransactionsCommand(str(account.account_id))
+        result = command.execute(db_session)
+
+        # Assert
+        assert result["status"] == "success"
+        assert result["account_id"] == str(account.account_id)
+        assert isinstance(result["transactions"], list)
+        assert (
+            len(result["transactions"]) >= 2
+        )  # At least the deposit and withdraw we just created
+
+        # Verify transactions contain expected fields
+        for transaction in result["transactions"]:
+            assert "transaction_id" in transaction
+            assert "type" in transaction
+            assert "amount" in transaction
+            assert "status" in transaction
+            assert "timestamp" in transaction
+            assert "direction" in transaction

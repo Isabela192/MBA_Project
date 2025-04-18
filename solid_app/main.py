@@ -6,9 +6,14 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from database.database import get_session, create_db_and_tables
-from database.models import User, Account, Transaction
+from database.models import User, Account
 from helpers.factories import ClientFactory, ManagerFactory
-from helpers.commands import DepositCommand, TransferCommand, WithdrawCommand
+from helpers.commands import (
+    DepositCommand,
+    TransferCommand,
+    WithdrawCommand,
+    GetTransactionsCommand,
+)
 from helpers.proxies import AccountProxy, RealAccount
 
 
@@ -89,9 +94,9 @@ async def get_users(session: Session = Depends(get_session)):
 @app.post("/users/", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
-    account_data: AccountCreate,
     user_type: str = "client",
     session: Session = Depends(get_session),
+    account_data: AccountCreate = None,
 ):
     if user_type not in ["client", "manager"]:
         raise HTTPException(
@@ -100,6 +105,11 @@ async def create_user(
 
     factory = ClientFactory() if user_type == "client" else ManagerFactory()
     user = factory.create_user(user_data.model_dump(), session)
+
+    # Create a default checking account if none provided
+    if account_data is None:
+        account_data = AccountCreate(account_type="checking")
+
     account = factory.create_user_account(
         user=user, account_data=account_data.model_dump(), session=session
     )
@@ -117,7 +127,7 @@ async def create_user(
 
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(
-    account_id: UUID,  # Accept UUID directly to ensure proper validation
+    account_id: UUID,
     deposit_request: DepositRequest,
     session: Session = Depends(get_session),
 ):
@@ -138,7 +148,7 @@ async def deposit(
 
 @app.post("/accounts/{account_id}/withdraw")
 async def withdraw(
-    account_id: UUID,  # Accept UUID directly to ensure proper validation
+    account_id: UUID,
     withdraw_request: WithdrawRequest,
     session: Session = Depends(get_session),
 ):
@@ -159,7 +169,7 @@ async def withdraw(
 
 @app.post("/accounts/{account_id}/transfer")
 async def transfer(
-    account_id: UUID,  # Accept UUID directly to ensure proper validation
+    account_id: UUID,
     transfer_request: TransferRequest,
     session: Session = Depends(get_session),
 ):
@@ -202,49 +212,43 @@ async def get_balance(account_id: UUID, session: Session = Depends(get_session))
     return {"balance": balance}
 
 
-@app.get("/accounts/{account_id}/transactions")
-async def get_transactions(account_id: UUID, session: Session = Depends(get_session)):
-    account_statement = (
-        select(Account).join(Account).where(Account.account_id == account_id)
-    )
-    account_transactions = session.exec(account_statement).first()
+class BalanceUpdateRequest(BaseModel):
+    amount: Decimal
 
-    if not account_transactions:
+
+@app.put("/accounts/{account_id}/balance")
+async def update_balance(
+    account_id: UUID,
+    update_request: BalanceUpdateRequest,
+    session: Session = Depends(get_session),
+):
+    real_account = RealAccount()
+    account_proxy = AccountProxy(real_account)
+
+    result = account_proxy.update_balance(account_id, update_request.amount, session)
+
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Account {account_id} not found",
         )
 
-    statement = (
-        select(Transaction)
-        .where(
-            Transaction.from_account_id
-            == account_transactions.id | Transaction.to_account_id
-            == account_transactions.id
+    new_balance = account_proxy.get_balance(account_id, session)
+    return {"message": "Balance updated successfully", "balance": new_balance}
+
+
+@app.get("/accounts/{account_id}/transactions")
+async def get_transactions(account_id: UUID, session: Session = Depends(get_session)):
+    command = GetTransactionsCommand(account_id=str(account_id))
+    result = command.execute(session)
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get("message", f"Account {account_id} not found"),
         )
-        .order_by(Transaction.timestamp)
-    )
 
-    transactions = session.exec(statement).all()
-
-    return {
-        "account_id": account_id,
-        "transactions": [
-            {
-                "transaction_id": str(transaction.transaction_id),
-                "type": transaction.type,
-                "amount": transaction.amount,
-                "status": transaction.status,
-                "timestamp": transaction.timestamp,
-                "direction": (
-                    "OUTGOING"
-                    if transaction.from_account_id == account_transactions.id
-                    else "INCOMING"
-                ),
-            }
-            for transaction in transactions
-        ],
-    }
+    return {"account_id": result["account_id"], "transactions": result["transactions"]}
 
 
 @app.delete("/users/{user_id}")
