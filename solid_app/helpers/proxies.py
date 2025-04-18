@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from sqlmodel import Session, select
-from .db_sqlite.models import Account
+from database.models import Account
 from datetime import datetime
 from uuid import UUID
 from typing import List, Dict, Any, Optional
@@ -47,10 +47,10 @@ class RealAccount(AccountInterface):
 class AccountProxy(AccountInterface):
     def __init__(self, real_account: RealAccount):
         self.real_account = real_account
-        self.acces_log: List[Dict[str, Any]] = []
+        self.access_log: List[Dict[str, Any]] = []
 
     def get_balance(self, account_id: UUID, session: Session) -> Optional[Decimal]:
-        self.acces_log.append(
+        self.access_log.append(
             {
                 "account_id": account_id,
                 "action": "get_balance",
@@ -62,7 +62,7 @@ class AccountProxy(AccountInterface):
     def update_balance(
         self, account_id: UUID, amount: Decimal, session: Session
     ) -> bool:
-        self.acces_log.append(
+        self.access_log.append(
             {
                 "account_id": account_id,
                 "action": "update_balance",
