@@ -31,6 +31,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 class UserCreate(BaseModel):
     document_id: str = Field(json_schema_extra={"example": "12345678901"})
     name: str = Field(json_schema_extra={"example": "John Doe"})
@@ -55,9 +56,6 @@ class TransferRequest(BaseModel):
     to_account_id: str
     amount: Decimal = Field(gt=0)
 
-@app.get("/users/create", include_in_schema=False)
-async def serve_frontend():
-    return FileResponse("static/index.html")
 
 @app.get("/home", include_in_schema=False)
 async def root():
