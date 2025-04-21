@@ -1,179 +1,186 @@
 import random
-import string
 from decimal import Decimal
 from locust import HttpUser, task, between
+import factory
+from factory import fuzzy
+from factory.faker import Faker
+from uuid import uuid4
+from database.models import (
+    User,
+    Account,
+    Transaction,
+    UserType,
+    AccountType,
+    AccountStatus,
+    TransactionType,
+    TransactionStatus,
+)
 
 
-def generate_document_id():
-    """Generate a random document ID (11 digits)"""
-    return "".join(random.choices(string.digits, k=11))
+# Factory-boy factories for generating test data
+class UserFactory(factory.Factory):
+    class Meta:
+        model = User
 
-
-def generate_username():
-    """Generate a random username"""
-    return (
-        f"user_{''.join(random.choices(string.ascii_lowercase + string.digits, k=8))}"
+    id = factory.Sequence(lambda n: n + 1)
+    document_id = factory.Sequence(
+        lambda n: f"{random.randint(10000000000, 99999999999)}"
+    )
+    username = Faker("user_name")
+    email = Faker("email")
+    user_type = fuzzy.FuzzyChoice([UserType.CLIENT, UserType.MANAGER])
+    updated_at = None
+    is_staff = factory.LazyAttribute(
+        lambda o: True if o.user_type == UserType.MANAGER else False
     )
 
 
-def generate_email(username):
-    """Generate a random email using the username"""
-    return f"{username}@example.com"
+class AccountFactory(factory.Factory):
+    class Meta:
+        model = Account
+
+    id = factory.Sequence(lambda n: n + 1)
+    account_id = factory.LazyFunction(uuid4)
+    balance = fuzzy.FuzzyDecimal(100, 10000, precision=2)
+    account_type = fuzzy.FuzzyChoice([AccountType.SAVINGS, AccountType.CHECKING])
+    status = AccountStatus.ACTIVE
+    updated_at = None
+    user_id = factory.LazyAttribute(lambda o: o.owner.id if o.owner else None)
+
+    # Association with a User
+    owner = factory.SubFactory(UserFactory)
 
 
-def generate_name():
-    """Generate a random name"""
-    first_names = [
-        "John",
-        "Jane",
-        "Mary",
-        "James",
-        "Robert",
-        "Patricia",
-        "Michael",
-        "Linda",
-    ]
-    last_names = [
-        "Smith",
-        "Johnson",
-        "Williams",
-        "Brown",
-        "Jones",
-        "Garcia",
-        "Miller",
-        "Davis",
-    ]
-    return f"{random.choice(first_names)} {random.choice(last_names)}"
+class TransactionFactory(factory.Factory):
+    class Meta:
+        model = Transaction
+
+    id = factory.Sequence(lambda n: n + 1)
+    transaction_id = factory.LazyFunction(uuid4)
+    type = fuzzy.FuzzyChoice(
+        [TransactionType.DEPOSIT, TransactionType.WITHDRAW, TransactionType.TRANSFER]
+    )
+    amount = fuzzy.FuzzyDecimal(10, 1000, precision=2)
+    status = TransactionStatus.COMPLETED
+
+    # We'll set these conditionally based on transaction type
+    from_account_id = None
+    to_account_id = None
+
+    # Associations with Accounts
+    @factory.post_generation
+    def setup_accounts(self, create, extracted, **kwargs):
+        if self.type == TransactionType.DEPOSIT:
+            # For deposits, only to_account is used
+            account = AccountFactory()
+            self.to_account_id = account.id
+            self.to_account = account
+        elif self.type == TransactionType.WITHDRAW:
+            # For withdrawals, only from_account is used
+            account = AccountFactory()
+            self.from_account_id = account.id
+            self.from_account = account
+        elif self.type == TransactionType.TRANSFER:
+            # For transfers, both accounts are used
+            from_account = AccountFactory()
+            to_account = AccountFactory()
+            self.from_account_id = from_account.id
+            self.from_account = from_account
+            self.to_account_id = to_account.id
+            self.to_account = to_account
 
 
-class BankUser(HttpUser):
+# Locust User class
+class BankAPIUser(HttpUser):
     wait_time = between(1, 5)  # Wait between 1 and 5 seconds between tasks
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user_id = None
-        self.account_id = None
-        self.document_id = None
-        self.second_account_id = None
-
     def on_start(self):
-        """Initialize user with an account"""
-        # Create user
-        self.document_id = generate_document_id()
-        username = generate_username()
+        """Setup before tests start running"""
+        # Create test user for authentication
+        self.test_user = UserFactory(
+            username="test_user",
+            email="test_user@example.com",
+            user_type=UserType.CLIENT,
+        )
 
-        user_data = {
-            "document_id": self.document_id,
-            "name": generate_name(),
-            "email": generate_email(username),
-            "username": username,
-        }
+        # Create test account
+        self.test_account = AccountFactory(
+            owner=self.test_user, balance=Decimal("1000.00")
+        )
 
-        response = self.client.post("/users/", json=user_data)
-        if response.status_code == 201:
-            self.user_id = response.json().get("user_id")
-
-        # Create account
-        account_data = {
-            "document_id": self.document_id,
-            "account_type": random.choice(["checking", "savings"]),
-        }
-
-        response = self.client.post("/accounts/", json=account_data)
-        if response.status_code == 201:
-            self.account_id = response.json().get("account_id")
-
-        # Create second account for transfers
-        second_account_data = {
-            "document_id": self.document_id,
-            "account_type": random.choice(["checking", "savings"]),
-        }
-
-        response = self.client.post("/accounts/", json=second_account_data)
-        if response.status_code == 201:
-            self.second_account_id = response.json().get("account_id")
-
-    @task(1)
-    def get_welcome(self):
-        """Test the welcome endpoint"""
-        self.client.get("/")
-
-    @task(2)
-    def get_users(self):
-        """Test getting all users"""
-        self.client.get("/users/")
-
-    @task(5)
-    def deposit_money(self):
-        """Test depositing money"""
-        if not self.account_id:
-            return
-
-        amount = round(random.uniform(10, 1000), 2)
-        payload = {"amount": amount}
-        self.client.post(f"/accounts/{self.account_id}/deposit", json=payload)
-
-    @task(4)
-    def check_balance(self):
-        """Test checking account balance"""
-        if not self.account_id:
-            return
-
-        self.client.get(f"/accounts/{self.account_id}/balance")
+        # Authenticate (this is a placeholder - implement actual auth if needed)
+        # self.client.post("/login", json={"username": self.test_user.username, "password": "test_password"})
 
     @task(3)
-    def withdraw_money(self):
-        """Test withdrawing money"""
-        if not self.account_id:
-            return
+    def get_user_info(self):
+        """Test getting user information"""
+        self.client.get(f"/users/{self.test_user.id}")
 
-        # First check balance to avoid withdrawal failures
-        response = self.client.get(f"/accounts/{self.account_id}/balance")
-        if response.status_code == 200:
-            balance = Decimal(response.json().get("balance", 0))
-            if balance > 0:
-                # Withdraw a random amount between 1 and half the balance
-                max_amount = balance / 2 if balance > 2 else balance
-                amount = round(random.uniform(1, float(max_amount)), 2)
-                payload = {"amount": amount}
-                self.client.post(f"/accounts/{self.account_id}/withdraw", json=payload)
+    @task(4)
+    def get_account_info(self):
+        """Test getting account information"""
+        self.client.get(f"/accounts/{self.test_account.id}")
 
     @task(2)
-    def transfer_money(self):
-        """Test transferring money between accounts"""
-        if not self.account_id or not self.second_account_id:
-            return
+    def create_deposit(self):
+        """Test creating a deposit transaction"""
+        transaction = TransactionFactory(
+            type=TransactionType.DEPOSIT,
+            amount=Decimal(str(random.randint(50, 500))),
+            to_account_id=self.test_account.id,
+        )
 
-        # First check balance to avoid transfer failures
-        response = self.client.get(f"/accounts/{self.account_id}/balance")
-        if response.status_code == 200:
-            balance = Decimal(response.json().get("balance", 0))
-            if balance > 10:  # Only transfer if balance is reasonable
-                # Transfer a random amount between 1 and half the balance
-                max_amount = balance / 2 if balance > 2 else balance
-                amount = round(random.uniform(1, float(max_amount)), 2)
-                payload = {"to_account_id": self.second_account_id, "amount": amount}
-                self.client.post(f"/accounts/{self.account_id}/transfer", json=payload)
+        self.client.post(
+            "/transactions",
+            json={
+                "type": transaction.type.value,
+                "amount": str(transaction.amount),
+                "to_account_id": transaction.to_account_id,
+            },
+        )
+
+    @task(2)
+    def create_withdrawal(self):
+        """Test creating a withdrawal transaction"""
+        transaction = TransactionFactory(
+            type=TransactionType.WITHDRAW,
+            amount=Decimal(str(random.randint(10, 100))),
+            from_account_id=self.test_account.id,
+        )
+
+        self.client.post(
+            "/transactions",
+            json={
+                "type": transaction.type.value,
+                "amount": str(transaction.amount),
+                "from_account_id": transaction.from_account_id,
+            },
+        )
 
     @task(1)
-    def view_transactions(self):
-        """Test viewing transaction history"""
-        if not self.account_id:
-            return
+    def create_transfer(self):
+        """Test creating a transfer transaction"""
+        # Create a destination account
+        destination_account = AccountFactory()
 
-        self.client.get(f"/accounts/{self.account_id}/transactions")
+        transaction = TransactionFactory(
+            type=TransactionType.TRANSFER,
+            amount=Decimal(str(random.randint(10, 200))),
+            from_account_id=self.test_account.id,
+            to_account_id=destination_account.id,
+        )
 
-    @task(1)
-    def create_new_user(self):
-        """Test creating a new user"""
-        document_id = generate_document_id()
-        username = generate_username()
+        self.client.post(
+            "/transactions",
+            json={
+                "type": transaction.type.value,
+                "amount": str(transaction.amount),
+                "from_account_id": transaction.from_account_id,
+                "to_account_id": transaction.to_account_id,
+            },
+        )
 
-        user_data = {
-            "document_id": document_id,
-            "name": generate_name(),
-            "email": generate_email(username),
-            "username": username,
-        }
-
-        self.client.post("/users/", json=user_data)
+    @task(3)
+    def list_transactions(self):
+        """Test listing transactions for an account"""
+        self.client.get(f"/accounts/{self.test_account.id}/transactions")

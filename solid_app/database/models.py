@@ -38,7 +38,7 @@ class User(SQLModel, table=True):
     __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
     document_id: str = Field(max_length=14, index=True, unique=True)
-    username: str
+    username: str = Field(max_length=50, index=True, unique=True)
     email: str = Field(max_length=100, index=True, unique=True)
     user_type: UserType
     created_at: datetime = Field(default_factory=datetime.now)

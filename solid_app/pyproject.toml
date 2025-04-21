@@ -18,6 +18,7 @@ ipdb = "^0.13.13"
 pytest-cov = "^6.1.1"
 locust = "^2.35.0"
 wily = "^1.25.0"
+factory-boy = "^3.3.3"
 
 
 [build-system]
