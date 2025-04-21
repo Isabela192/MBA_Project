@@ -38,7 +38,7 @@ app = FastAPI(lifespan=lifespan, title="NO SOLID Bank API", version="1.5.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-@app.get("/home", include_in_schema=False)
+@app.get("/", include_in_schema=False)
 async def root():
     return FileResponse("static/welcome.html")
 

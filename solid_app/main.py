@@ -56,7 +56,7 @@ class TransferRequest(BaseModel):
     amount: Decimal = Field(gt=0)
 
 
-@app.get("/home", include_in_schema=False)
+@app.get("/", include_in_schema=False)
 async def root():
     return FileResponse("static/welcome.html")
 
