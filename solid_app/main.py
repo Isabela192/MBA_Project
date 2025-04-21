@@ -4,6 +4,8 @@ from sqlmodel import Session, select
 from decimal import Decimal
 from uuid import UUID
 from pydantic import BaseModel, Field
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from database.database import get_session, create_db_and_tables
 from database.models import User, Account
@@ -26,6 +28,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title="SOLID Bank API", version="1.5.0")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class UserCreate(BaseModel):
@@ -52,9 +56,9 @@ class TransferRequest(BaseModel):
     amount: Decimal = Field(gt=0)
 
 
-@app.get("/")
+@app.get("/home", include_in_schema=False)
 async def root():
-    return {"message": "Welcome to the Bank API with SQLModel using SOLID Principles"}
+    return FileResponse("static/welcome.html")
 
 
 @app.get("/users/")
