@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "no-solid-app"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "no_solid_app"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+sqlmodel = "^0.0.24"
+fastapi = {extras = ["standard"], version = "^0.115.12"}
+sqlalchemy = "^2.0.40"
+bcrypt = "^4.0.1"
+uvicorn = "^0.29.0"
+pre-commit = "^4.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+coverage = "^7.8.0"
+pytest-cov = "^4.1.0"
+black = "^25.1.0"
+pre-commit = "^4.2.0"
+httpx = "^0.27.0"
+pytest-mock = "^3.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[tool.coverage.run]
+source = ["no_solid_app"]
+omit = ["*/tests/*", "*/venv/*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'

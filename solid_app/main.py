@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     print("Shutting down...")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="SOLID Bank API", version="1.5.0")
 
 
 class UserCreate(BaseModel):

@@ -1,217 +1,203 @@
-from typing import Optional
-from decimal import Decimal
-from pydantic import BaseModel, Field
-from fastapi import FastAPI, HTTPException
-from uuid import UUID, uuid4
-from datetime import datetime
-from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from fastapi import FastAPI, Depends, HTTPException, Header
+from sqlmodel import Session, select
+from typing import List
 
-
-# --- Models ---
-class UserBase(BaseModel):
-    account_id: UUID = Field(default_factory=uuid4)
-    document_id: str
-    username: str
-    email: str
-    user_type: str
-
-
-class AccountBase(BaseModel):
-    account_id: UUID = Field(default_factory=uuid4)
-    document_id: str
-    balance: Decimal = Decimal("0")
-    account_type: str
-    status: str = "ACTIVE"
+from database.database import get_session, create_db_and_tables
+from database.models import (
+    User,
+    UserCreate,
+    UserResponse,
+    LoginRequest,
+    LoginResponse,
+    AccountCreate,
+    AccountResponse,
+    TransactionRequest,
+    TransactionResponse,
+)
+from helpers.singleton import auth_manager, user_creator
+from helpers.facade import transaction_facade
+from helpers.abstract_factory import AccountFactoryProducer
 
 
-class TransactionRequest(BaseModel):
-    amount: Decimal = Field(gt=0)
-    destination_account_id: Optional[UUID] = None
+# Define lifespan first before passing it to FastAPI constructor
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting up...")
+    create_db_and_tables()
+    yield
+    print("Shutting down...")
 
 
-# --- Singleton Pattern ---
-class AuthenticationManager:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(AuthenticationManager, cls).__new__(cls)
-            # Initialize user store
-            cls._instance.users = {}
-            cls._instance.active_sessions = {}
-        return cls._instance
-
-    def register_user(self, user_data: UserBase) -> dict:
-        if user_data.username in self.users:
-            raise HTTPException(status_code=400, detail="Username already exists")
-
-        user_dict = user_data.model_dump()
-        self.users[user_data.username] = user_dict
-        return user_dict
-
-    def authenticate_user(self, username: str, password: str) -> Optional[dict]:
-        user = self.users.get(username)
-        if user:
-            self.active_sessions[username] = str(uuid4())
-            return user
-        return None
-
-    def is_authenticated(self, username: str, session_id: str) -> bool:
-        return self.active_sessions.get(username) == session_id
-
-
-# --- Facade Pattern ---
-class TransactionFacade:
-    def __init__(self):
-        self.accounts_db = {}
-        self.transactions_db = []
-
-    def process_deposit(self, account_id: UUID, amount: Decimal) -> dict:
-        if str(account_id) not in self.accounts_db:
-            self.accounts_db[str(account_id)] = AccountBase(
-                account_id=account_id, document_id="", account_type="CHECKING"
-            )
-
-        account = self.accounts_db[str(account_id)]
-        account.balance += amount
-
-        transaction = {
-            "transaction_id": uuid4(),
-            "type": "DEPOSIT",
-            "account_id": account_id,
-            "amount": amount,
-            "timestamp": datetime.now(),
-        }
-        self.transactions_db.append(transaction)
-        return transaction
-
-    def process_transfer(
-        self, source_account: UUID, dest_account: UUID, amount: Decimal
-    ) -> dict:
-        if str(source_account) not in self.accounts_db:
-            raise HTTPException(status_code=404, detail="Source account not found")
-
-        source = self.accounts_db[str(source_account)]
-        if source.balance < amount:
-            raise HTTPException(status_code=400, detail="Insufficient funds")
-
-        source.balance -= amount
-        if str(dest_account) in self.accounts_db:
-            self.accounts_db[str(dest_account)].balance += amount
-
-        transaction = {
-            "transaction_id": uuid4(),
-            "type": "TRANSFER",
-            "source_account": source_account,
-            "destination_account": dest_account,
-            "amount": amount,
-            "timestamp": datetime.now(),
-        }
-        self.transactions_db.append(transaction)
-        return transaction
-
-
-# --- Abstract Factory Pattern ---
-class Account(ABC):
-    @abstractmethod
-    def get_type(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_features(self) -> dict:
-        pass
-
-
-class AccountFactory(ABC):
-    @abstractmethod
-    def create_account(self, document_id: str) -> Account:
-        pass
-
-
-class CheckingAccount(Account):
-    def get_type(self) -> str:
-        return "CHECKING"
-
-    def get_features(self) -> dict:
-        return {
-            "overdraft_allowed": True,
-            "minimum_balance": Decimal("0"),
-            "maintenance_fee": Decimal("10"),
-        }
-
-
-class SavingsAccount(Account):
-    def get_type(self) -> str:
-        return "SAVINGS"
-
-    def get_features(self) -> dict:
-        return {
-            "interest_rate": Decimal("0.025"),
-            "minimum_balance": Decimal("100"),
-            "withdrawal_limit": 6,
-        }
-
-
-class CheckingAccountFactory(AccountFactory):
-    def create_account(self, document_id: str) -> Account:
-        return CheckingAccount()
-
-
-class SavingsAccountFactory(AccountFactory):
-    def create_account(self, document_id: str) -> Account:
-        return SavingsAccount()
-
-
-# --- Routes ---
-auth_manager = AuthenticationManager()
-transaction_facade = TransactionFacade()
+# Then create the app with the lifespan
+app = FastAPI(title="No SOLID Bank App", lifespan=lifespan)
 
 
 @app.get("/")
 async def root():
-    return {"Welcome! This is NO SOLID App"}
+    return {"message": "Welcome to the Bank API using Design Patterns (No SOLID)"}
 
 
-@app.post("/users/")
-async def create_user(user_data: UserBase):
-    return auth_manager.register_user(user_data)
-
-
-@app.post("/login/")
-async def login(username: str, password: str):
-    user = auth_manager.authenticate_user(username, password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"message": "Login successful", "user": user}
-
-
-@app.post("/accounts/")
-async def create_account(document_id: str, account_type: str):
-    factory = (
-        CheckingAccountFactory()
-        if account_type == "CHECKING"
-        else SavingsAccountFactory()
-    )
-    account = factory.create_account(document_id)
+# --- User Routes ---
+@app.post("/users/", response_model=UserResponse)
+async def create_user(user_data: UserCreate, db: Session = Depends(get_session)):
+    # Use the Singleton pattern for user creation
+    user = user_creator.create_user(user_data.dict(), db)
     return {
-        "account_id": uuid4(),
-        "type": account.get_type(),
-        "features": account.get_features(),
-        "document_id": document_id,
+        "document_id": user.document_id,
+        "username": user.username,
+        "email": user.email,
+        "user_type": user.user_type,
+        "account_id": user.account_id,
     }
 
 
-@app.post("/accounts/{account_id}/deposit")
-async def deposit(account_id: UUID, request: TransactionRequest):
-    return transaction_facade.process_deposit(account_id, request.amount)
+@app.post("/login/", response_model=LoginResponse)
+async def login(login_data: LoginRequest, db: Session = Depends(get_session)):
+    # Use the Singleton pattern for authentication
+    auth_result = auth_manager.authenticate_user(
+        login_data.username, login_data.password, db
+    )
+    if not auth_result:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {
+        "message": "Login successful",
+        "user": auth_result["user"],
+        "session_id": auth_result["session_id"],
+    }
 
 
-@app.post("/accounts/{account_id}/transfer")
-async def transfer(account_id: UUID, request: TransactionRequest):
+# --- Account Routes ---
+@app.post("/accounts/", response_model=AccountResponse)
+async def create_account(
+    account_data: AccountCreate,
+    username: str = Header(...),
+    session_id: str = Header(...),
+    db: Session = Depends(get_session),
+):
+    # Verify authentication using Singleton pattern
+    if not auth_manager.is_authenticated(username, session_id, db):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Get user from username
+    statement = select(User).where(User.username == username)
+    user = db.exec(statement).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Create account using Abstract Factory pattern
+    factory = AccountFactoryProducer.get_factory(account_data.account_type)
+    account_object = factory.create_account(account_data.document_id, db)
+    account = account_object.create_db_entry(account_data.document_id, db)
+    features = account_object.get_features()
+
+    return {
+        "account_id": account.account_id,
+        "document_id": account.document_id,
+        "balance": account.balance,
+        "account_type": account.account_type,
+        "status": account.status,
+        "features": features,
+        "created_at": account.created_at,
+    }
+
+
+# --- Transaction Routes (using Facade pattern) ---
+@app.post("/accounts/{account_id}/deposit", response_model=TransactionResponse)
+async def deposit(
+    account_id: str,
+    request: TransactionRequest,
+    username: str = Header(...),
+    session_id: str = Header(...),
+    db: Session = Depends(get_session),
+):
+    # Verify authentication
+    if not auth_manager.is_authenticated(username, session_id, db):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Process deposit via Facade pattern
+    result = transaction_facade.process_deposit(account_id, request.amount, db)
+    return result
+
+
+@app.post("/accounts/{account_id}/withdraw", response_model=TransactionResponse)
+async def withdraw(
+    account_id: str,
+    request: TransactionRequest,
+    username: str = Header(...),
+    session_id: str = Header(...),
+    db: Session = Depends(get_session),
+):
+    """
+    Withdraw funds from an account using the Facade pattern.
+
+    - Uses singleton pattern for authentication
+    - Uses facade pattern for transaction processing
+    - Account validation and funds checking are handled by the facade
+    """
+    # Verify authentication
+    if not auth_manager.is_authenticated(username, session_id, db):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Process withdrawal via Facade pattern
+    result = transaction_facade.process_withdrawal(account_id, request.amount, db)
+    return result
+
+
+@app.post("/accounts/{account_id}/transfer", response_model=TransactionResponse)
+async def transfer(
+    account_id: str,
+    request: TransactionRequest,
+    username: str = Header(...),
+    session_id: str = Header(...),
+    db: Session = Depends(get_session),
+):
+    # Verify authentication
+    if not auth_manager.is_authenticated(username, session_id, db):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Verify destination account is provided
     if not request.destination_account_id:
         raise HTTPException(status_code=400, detail="Destination account is required")
-    return transaction_facade.process_transfer(
-        account_id, request.destination_account_id, request.amount
+
+    # Process transfer via Facade pattern
+    result = transaction_facade.process_transfer(
+        account_id, request.destination_account_id, request.amount, db
     )
+    return result
+
+
+@app.get(
+    "/accounts/{account_id}/transactions", response_model=List[TransactionResponse]
+)
+async def get_transactions(
+    account_id: str,
+    username: str = Header(...),
+    session_id: str = Header(...),
+    db: Session = Depends(get_session),
+):
+    # Verify authentication
+    if not auth_manager.is_authenticated(username, session_id, db):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Get transactions via Facade pattern
+    transactions = transaction_facade.get_account_transactions(account_id, db)
+    return transactions
+
+
+@app.get("/accounts/{account_id}/balance")
+async def get_balance(
+    account_id: str,
+    username: str = Header(...),
+    session_id: str = Header(...),
+    db: Session = Depends(get_session),
+):
+    # Verify authentication
+    if not auth_manager.is_authenticated(username, session_id, db):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Get balance via Facade pattern
+    balance = transaction_facade.get_account_balance(account_id, db)
+    return balance
