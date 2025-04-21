@@ -4,6 +4,8 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlmodel import Session, select
 from typing import List
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from database.database import get_session, create_db_and_tables
 from database.models import (
     User,
@@ -31,12 +33,14 @@ async def lifespan(app: FastAPI):
 
 
 # Then create the app with the lifespan
-app = FastAPI(title="No SOLID Bank App", lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="NO SOLID Bank API", version="1.5.0")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-@app.get("/")
+@app.get("/home", include_in_schema=False)
 async def root():
-    return {"message": "Welcome to the Bank API using Design Patterns (No SOLID)"}
+    return FileResponse("static/welcome.html")
 
 
 # --- User Routes ---
