@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 from datetime import datetime
 
-from solid_app.src.proxies import RealAccount, AccountProxy
-from solid_app.src.db_sqlite.models import Account, AccountType, AccountStatus
+from helpers.proxies import RealAccount, AccountProxy
+from database.models import Account, AccountType, AccountStatus
 
 
 @pytest.fixture

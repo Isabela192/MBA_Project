@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import uuid4, UUID
 from datetime import datetime
 from sqlmodel import Session, select
-from .db_sqlite.models import Account, Transaction, TransactionType, TransactionStatus
+from database.models import Account, Transaction, TransactionType, TransactionStatus
 from typing import Dict, Any
 
 # Command Pattern
@@ -15,16 +15,17 @@ class Command(ABC):
         pass
 
 
-class DepositComand(Command):
+class DepositCommand(Command):
     def __init__(self, account_id: str, amount: Decimal):
-        # Convert string to UUID if it's not already a UUID
         try:
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.account_id = account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid account_id format. Expected UUID, got: {account_id}"
+            ) from e
+
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:
@@ -48,30 +49,30 @@ class DepositComand(Command):
         session.add(transaction)
         session.commit()
         session.refresh(account)
-        # Use model_dump instead of dict (deprecated)
         return account.model_dump()
 
 
 class TransferCommand(Command):
     def __init__(self, from_account_id: str, to_account_id: str, amount: Decimal):
-        # Convert string to UUID if it's not already a UUID
         try:
             self.from_account_id = (
                 UUID(from_account_id)
                 if isinstance(from_account_id, str)
                 else from_account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.from_account_id = from_account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid from_account_id format. Expected UUID, got: {from_account_id}"
+            ) from e
 
         try:
             self.to_account_id = (
                 UUID(to_account_id) if isinstance(to_account_id, str) else to_account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.to_account_id = to_account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid to_account_id format. Expected UUID, got: {to_account_id}"
+            ) from e
 
         self.amount = amount
 
@@ -120,14 +121,15 @@ class TransferCommand(Command):
 
 class WithdrawCommand(Command):
     def __init__(self, account_id: str, amount: Decimal):
-        # Convert string to UUID if it's not already a UUID
         try:
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError:
-            # For tests with non-UUID strings, just use the string as-is
-            self.account_id = account_id
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid account_id format. Expected UUID, got: {account_id}"
+            ) from e
+
         self.amount = amount
 
     def execute(self, session: Session) -> Dict[str, Any]:
@@ -154,5 +156,60 @@ class WithdrawCommand(Command):
         session.add(transaction)
         session.commit()
         session.refresh(account)
-        # Use model_dump instead of dict (deprecated)
         return account.model_dump()
+
+
+class GetTransactionsCommand(Command):
+    def __init__(self, account_id: str):
+        try:
+            self.account_id = (
+                UUID(account_id) if isinstance(account_id, str) else account_id
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid account_id format. Expected UUID, got: {account_id}"
+            ) from e
+
+    def execute(self, session: Session) -> Dict[str, Any]:
+        # Find the account
+        account_statement = select(Account).where(Account.account_id == self.account_id)
+        account = session.exec(account_statement).first()
+
+        if not account:
+            return {
+                "status": "failed",
+                "message": f"Account {self.account_id} not found",
+            }
+
+        # Get transactions where this account is either sender or receiver
+        statement = (
+            select(Transaction)
+            .where(
+                (Transaction.from_account_id == account.id)
+                | (Transaction.to_account_id == account.id)
+            )
+            .order_by(Transaction.timestamp)
+        )
+
+        transactions = session.exec(statement).all()
+
+        # Format transactions for response
+        formatted_transactions = [
+            {
+                "transaction_id": str(transaction.transaction_id),
+                "type": transaction.type,
+                "amount": str(transaction.amount),
+                "status": transaction.status,
+                "timestamp": transaction.timestamp,
+                "direction": "OUTGOING"
+                if transaction.from_account_id == account.id
+                else "INCOMING",
+            }
+            for transaction in transactions
+        ]
+
+        return {
+            "status": "success",
+            "account_id": str(self.account_id),
+            "transactions": formatted_transactions,
+        }

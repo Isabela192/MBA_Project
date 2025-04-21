@@ -14,7 +14,10 @@ sqlmodel = "^0.0.24"
 pytest = "^8.3.5"
 coverage = "^7.8.0"
 pre-commit = "^4.2.0"
-locust = "^2.34.0"
+ipdb = "^0.13.13"
+pytest-cov = "^6.1.1"
+locust = "^2.35.0"
+wily = "^1.25.0"
 
 
 [build-system]

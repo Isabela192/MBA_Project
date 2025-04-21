@@ -1,21 +1,11 @@
-import sys
-import os
-from pathlib import Path
-
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 from fastapi.testclient import TestClient
 from sqlmodel.pool import StaticPool
 
-from solid_app.src.main import app
-from solid_app.src.db_sqlite.database import get_session
+from main import app
+from database.database import get_session
 from unittest.mock import MagicMock
-
-pyproject_root = Path(__file__).parent
-sys.path.insert(0, str(pyproject_root))
-
-src_path = os.path.join(pyproject_root, "src")
-sys.path.insert(0, src_path)
 
 
 @pytest.fixture
