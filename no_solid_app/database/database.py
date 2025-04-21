@@ -6,7 +6,7 @@ DB_PATH = "database/NO_SOLID_BANK.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 engine = create_engine(
-    DATABASE_URL, echo=True, connect_args={"check_same_thread": True}
+    DATABASE_URL, echo=True, connect_args={"check_same_thread": False}
 )
 
 
