@@ -1,20 +1,22 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, status
-from sqlmodel import Session, select
 from decimal import Decimal
 from uuid import UUID
-from pydantic import BaseModel, Field
 
-from database.database import get_session, create_db_and_tables
-from database.models import User, Account
-from helpers.factories import ClientFactory, ManagerFactory
+from database.database import create_db_and_tables, get_session
+from database.models import Account, User
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from helpers.commands import (
     DepositCommand,
+    GetTransactionsCommand,
     TransferCommand,
     WithdrawCommand,
-    GetTransactionsCommand,
 )
+from helpers.factories import ClientFactory, ManagerFactory
 from helpers.proxies import AccountProxy, RealAccount
+from pydantic import BaseModel, Field
+from sqlmodel import Session, select
 
 
 @asynccontextmanager
@@ -25,7 +27,9 @@ async def lifespan(app: FastAPI):
     print("Shutting down...")
 
 
-app = FastAPI(lifespan=lifespan, title="SOLID Bank API", version="1.5.0")
+app = FastAPI(lifespan=lifespan, title="SOLID Bank API")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class UserCreate(BaseModel):
@@ -52,11 +56,12 @@ class TransferRequest(BaseModel):
     amount: Decimal = Field(gt=0)
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
-    return {"message": "Welcome to the Bank API with SQLModel using SOLID Principles"}
+    return FileResponse("static/welcome.html")
 
 
+# --- User Routes (using Factory pattern) ---
 @app.get("/users/")
 async def get_users(session: Session = Depends(get_session)):
     statement = select(User)
@@ -125,6 +130,7 @@ async def create_user(
     }
 
 
+# --- Transaction Routes (using command pattern) ---
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(
     account_id: UUID,

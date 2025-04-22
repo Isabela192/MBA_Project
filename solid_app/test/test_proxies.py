@@ -1,11 +1,11 @@
-import pytest
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
-from datetime import datetime
 
-from helpers.proxies import RealAccount, AccountProxy
-from database.models import Account, AccountType, AccountStatus
+import pytest
+from database.models import Account, AccountStatus, AccountType
+from helpers.proxies import AccountProxy, RealAccount
 
 
 @pytest.fixture

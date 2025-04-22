@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLID Bank API</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            background-color: #f5f9fc;
+        }
+        header {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: white;
+            text-align: center;
+            padding: 3rem 1rem;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            padding: 2rem;
+        }
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .pattern-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+        .pattern-card:hover {
+            transform: translateY(-5px);
+        }
+        h3 {
+            color: #6e8efb;
+            margin-top: 0;
+        }
+        .principle {
+            display: inline-block;
+            background-color: #e9f0ff;
+            border-radius: 4px;
+            padding: 0.2rem 0.5rem;
+            margin: 0.2rem;
+            font-size: 0.8rem;
+            color: #4a6ee0;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #6e8efb;
+            color: white;
+            text-decoration: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #5d7ce0;
+        }
+        code {
+            background-color: #f0f4f8;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        footer {
+            text-align: center;
+            padding: 2rem;
+            background-color: #e9f0ff;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>SOLID Bank API</h1>
+            <p>A banking application built with FastAPI following SOLID principles and design patterns</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>About This Application</h2>
+            <p>This banking API was built as part of a research project to evaluate the impact of applying SOLID principles in conjunction with design patterns. The application implements core banking functionalities including:</p>
+            <ul>
+                <li>User management (clients and managers)</li>
+                <li>Account creation and management</li>
+                <li>Financial transactions (deposits, withdrawals, transfers)</li>
+                <li>Transaction history</li>
+            </ul>
+            <p>All of these features are implemented using SOLID principles to ensure clean, maintainable, and extensible code.</p>
+        </div>
+
+        <h2>Design Patterns Used</h2>
+        <div class="pattern-grid">
+            <div class="pattern-card">
+                <h3>Factory Method</h3>
+                <div>
+                    <span class="principle">S - Single Responsibility</span>
+                    <span class="principle">O - Open/Closed</span>
+                    <span class="principle">L - Liskov Substitution</span>
+                    <span class="principle">D - Dependency Inversion</span>
+                </div>
+                <p>Used for creating different types of users (clients and managers) through specialized factories that handle the creation logic.</p>
+                <p>Each factory is responsible only for creating a specific type of user, making the system more modular and easier to extend.</p>
+            </div>
+
+            <div class="pattern-card">
+                <h3>Command Pattern</h3>
+                <div>
+                    <span class="principle">S - Single Responsibility</span>
+                    <span class="principle">O - Open/Closed</span>
+                    <span class="principle">I - Interface Segregation</span>
+                    <span class="principle">D - Dependency Inversion</span>
+                </div>
+                <p>Each financial operation (deposit, withdraw, transfer) is encapsulated as a separate command object.</p>
+                <p>This makes it easy to add new transaction types without modifying existing code, and each command has a single responsibility.</p>
+            </div>
+
+            <div class="pattern-card">
+                <h3>Proxy Pattern</h3>
+                <div>
+                    <span class="principle">S - Single Responsibility</span>
+                    <span class="principle">O - Open/Closed</span>
+                </div>
+                <p>The AccountProxy controls access to account operations, adding a layer of validation and security.</p>
+                <p>This separation allows modifications to access control logic without changing the core account functionality.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>SOLID Principles Applied</h2>
+            <ul>
+                <li><strong>Single Responsibility Principle:</strong> Each class has one job. For example, the Command pattern ensures that each transaction type has its own class with a single responsibility.</li>
+                <li><strong>Open/Closed Principle:</strong> The application is open for extension but closed for modification. New transaction types can be added without modifying existing code.</li>
+                <li><strong>Liskov Substitution Principle:</strong> Subtypes (like different user factories) can be substituted for their base types without affecting behavior.</li>
+                <li><strong>Interface Segregation Principle:</strong> Commands implement only the methods they need, avoiding unnecessary dependencies.</li>
+                <li><strong>Dependency Inversion Principle:</strong> High-level modules depend on abstractions, not concrete implementations, making the system more flexible.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>API Documentation</h2>
+            <p>The API documentation is automatically generated using FastAPI's Swagger UI. You can access it by running the application and navigating to:</p>
+            <code>/docs</code>
+            <p>This provides an interactive interface to explore and test all API endpoints.</p>
+            <p>
+                <a href="/docs" class="btn">View API Documentation</a>
+            </p>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 SOLID Bank API - A Research Project by Isabela Christina Siqueira</p>
+    </footer>
+</body>
+</html>

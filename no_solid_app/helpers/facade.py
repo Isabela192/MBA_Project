@@ -1,229 +1,194 @@
-from fastapi import HTTPException
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Dict
+from uuid import UUID, uuid4
+
+from database.models import Account, Transaction, TransactionStatus, TransactionType
 from sqlmodel import Session, select
-from typing import Dict, Any, List
-
-from database.models import Account, Transaction
-from helpers.singleton import Singleton
-
-# Facade Pattern Implementation
 
 
-class AccountValidator:
-    """Subsystem component for account validation"""
-
-    @staticmethod
-    def validate_account_exists(account_id: str, db: Session) -> Account:
-        """
-        Validates that an account exists and returns it.
-        Raises HTTPException if account doesn't exist.
-        """
+# Facade Pattern
+class TransactionFacade:
+    def deposit(
+        self, account_id: UUID, amount: Decimal, session: Session
+    ) -> Dict[str, Any]:
         statement = select(Account).where(Account.account_id == account_id)
-        account = db.exec(statement).first()
+        account = session.exec(statement).first()
+
         if not account:
-            raise HTTPException(
-                status_code=404, detail=f"Account {account_id} not found"
-            )
-        return account
+            return {"status": "failed", "message": f"Account {account_id} not found"}
 
-    @staticmethod
-    def validate_sufficient_funds(account: Account, amount: float) -> None:
-        """
-        Validates that an account has sufficient funds for a transaction.
-        Raises HTTPException if funds are insufficient.
-        """
-        if account.balance < amount:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient funds in account {account.account_id}",
-            )
-
-
-class TransactionCreator:
-    """Subsystem component for creating transactions"""
-
-    @staticmethod
-    def create_deposit_transaction(
-        account: Account, amount: float, db: Session
-    ) -> Transaction:
-        """Creates a deposit transaction"""
         transaction = Transaction(
-            account_id=account.id, transaction_type="DEPOSIT", amount=amount
-        )
-        db.add(transaction)
-        db.commit()
-        db.refresh(transaction)
-        return transaction
-
-    @staticmethod
-    def create_withdrawal_transaction(
-        account: Account, amount: float, db: Session
-    ) -> Transaction:
-        """Creates a withdrawal transaction"""
-        transaction = Transaction(
-            account_id=account.id, transaction_type="WITHDRAW", amount=amount
-        )
-        db.add(transaction)
-        db.commit()
-        db.refresh(transaction)
-        return transaction
-
-    @staticmethod
-    def create_transfer_transaction(
-        source_account: Account, dest_account_id: str, amount: float, db: Session
-    ) -> Transaction:
-        """Creates a transfer transaction"""
-        transaction = Transaction(
-            account_id=source_account.id,
-            destination_account_id=dest_account_id,
-            transaction_type="TRANSFER",
+            transaction_id=uuid4(),
+            type=TransactionType.DEPOSIT,
             amount=amount,
+            status=TransactionStatus.COMPLETED,
+            to_account_id=account.id,
         )
-        db.add(transaction)
-        db.commit()
-        db.refresh(transaction)
-        return transaction
 
-
-class AccountUpdater:
-    """Subsystem component for updating account balances"""
-
-    @staticmethod
-    def add_funds(account: Account, amount: float, db: Session) -> Account:
-        """Adds funds to an account"""
         account.balance += amount
-        db.add(account)
-        db.commit()
-        db.refresh(account)
-        return account
+        account.updated_at = datetime.now()
 
-    @staticmethod
-    def subtract_funds(account: Account, amount: float, db: Session) -> Account:
-        """Subtracts funds from an account"""
-        account.balance -= amount
-        db.add(account)
-        db.commit()
-        db.refresh(account)
-        return account
+        session.add(transaction)
+        session.commit()
+        session.refresh(account)
 
-
-class TransactionFacade(Singleton):
-    """
-    Facade that provides a unified interface to the subsystems for transaction operations
-    """
-
-    def process_deposit(
-        self, account_id: str, amount: float, db: Session
-    ) -> Dict[str, Any]:
-        """Processes a deposit into an account"""
-        # Validate account - will raise HTTPException if not found
-        account = AccountValidator.validate_account_exists(account_id, db)
-
-        # Update account balance
-        account = AccountUpdater.add_funds(account, amount, db)
-
-        # Create transaction record
-        transaction = TransactionCreator.create_deposit_transaction(account, amount, db)
-
-        # Return result
         return {
-            "transaction_id": transaction.transaction_id,
-            "type": "DEPOSIT",
-            "account_id": account.account_id,
-            "amount": amount,
-            "timestamp": transaction.timestamp,
+            "status": "success",
+            "message": "Deposit successful",
+            "transaction_id": str(transaction.transaction_id),
+            "new_balance": str(account.balance),
         }
 
-    def process_withdrawal(
-        self, account_id: str, amount: float, db: Session
+    def withdraw(
+        self, account_id: UUID, amount: Decimal, session: Session
     ) -> Dict[str, Any]:
-        """Processes a withdrawal from an account"""
-        # Validate account - will raise HTTPException if not found
-        account = AccountValidator.validate_account_exists(account_id, db)
+        statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(statement).first()
 
-        # Validate sufficient funds - will raise HTTPException if insufficient
-        AccountValidator.validate_sufficient_funds(account, amount)
+        if not account:
+            return {"status": "failed", "message": f"Account {account_id} not found"}
 
-        # Update account balance
-        account = AccountUpdater.subtract_funds(account, amount, db)
-
-        # Create transaction record
-        transaction = TransactionCreator.create_withdrawal_transaction(
-            account, amount, db
-        )
-
-        # Return result
-        return {
-            "transaction_id": transaction.transaction_id,
-            "type": "WITHDRAW",
-            "account_id": account.account_id,
-            "amount": amount,
-            "timestamp": transaction.timestamp,
-        }
-
-    def process_transfer(
-        self, source_account_id: str, dest_account_id: str, amount: float, db: Session
-    ) -> Dict[str, Any]:
-        """Processes a transfer between accounts"""
-        # Validate source account - will raise HTTPException if not found
-        source_account = AccountValidator.validate_account_exists(source_account_id, db)
-
-        # Validate sufficient funds - will raise HTTPException if insufficient
-        AccountValidator.validate_sufficient_funds(source_account, amount)
-
-        # Validate destination account - will raise HTTPException if not found
-        dest_account = AccountValidator.validate_account_exists(dest_account_id, db)
-
-        # Update account balances
-        source_account = AccountUpdater.subtract_funds(source_account, amount, db)
-        dest_account = AccountUpdater.add_funds(dest_account, amount, db)
-
-        # Create transaction record
-        transaction = TransactionCreator.create_transfer_transaction(
-            source_account, dest_account_id, amount, db
-        )
-
-        # Return result
-        return {
-            "transaction_id": transaction.transaction_id,
-            "type": "TRANSFER",
-            "account_id": source_account.account_id,
-            "destination_account_id": dest_account_id,
-            "amount": amount,
-            "timestamp": transaction.timestamp,
-        }
-
-    def get_account_transactions(
-        self, account_id: str, db: Session
-    ) -> List[Dict[str, Any]]:
-        """Gets all transactions for an account"""
-        # Validate account - will raise HTTPException if not found
-        account = AccountValidator.validate_account_exists(account_id, db)
-
-        # Get transactions
-        statement = select(Transaction).where(Transaction.account_id == account.id)
-        transactions = db.exec(statement).all()
-
-        # Format and return transactions
-        return [
-            {
-                "transaction_id": tx.transaction_id,
-                "type": tx.transaction_type,
-                "account_id": account.account_id,
-                "destination_account_id": tx.destination_account_id,
-                "amount": tx.amount,
-                "timestamp": tx.timestamp,
+        if account.balance < amount:
+            return {
+                "status": "failed",
+                "message": f"Insufficient funds in account {account_id}",
             }
-            for tx in transactions
+
+        transaction = Transaction(
+            transaction_id=uuid4(),
+            type=TransactionType.WITHDRAW,
+            amount=amount,
+            status=TransactionStatus.COMPLETED,
+            from_account_id=account.id,
+        )
+
+        account.balance -= amount
+        account.updated_at = datetime.now()
+
+        session.add(transaction)
+        session.commit()
+        session.refresh(account)
+
+        return {
+            "status": "success",
+            "message": "Withdraw successful",
+            "transaction_id": str(transaction.transaction_id),
+            "new_balance": str(account.balance),
+        }
+
+    def transfer(
+        self,
+        from_account_id: UUID,
+        to_account_id: UUID,
+        amount: Decimal,
+        session: Session,
+    ) -> Dict[str, Any]:
+        # Verificando conta de origem
+        from_statement = select(Account).where(Account.account_id == from_account_id)
+        from_account = session.exec(from_statement).first()
+
+        if not from_account:
+            return {
+                "status": "failed",
+                "message": f"Source account {from_account_id} not found",
+            }
+
+        if from_account.balance < amount:
+            return {
+                "status": "failed",
+                "message": f"Insufficient funds in account {from_account_id}",
+            }
+
+        # Verificando conta de destino
+        to_statement = select(Account).where(Account.account_id == to_account_id)
+        to_account = session.exec(to_statement).first()
+
+        if not to_account:
+            return {
+                "status": "failed",
+                "message": f"Destination account {to_account_id} not found",
+            }
+
+        # Criando transação
+        transaction = Transaction(
+            transaction_id=uuid4(),
+            type=TransactionType.TRANSFER,
+            amount=amount,
+            status=TransactionStatus.COMPLETED,
+            from_account_id=from_account.id,
+            to_account_id=to_account.id,
+        )
+
+        # Atualizando saldos
+        from_account.balance -= amount
+        to_account.balance += amount
+        from_account.updated_at = datetime.now()
+        to_account.updated_at = datetime.now()
+
+        session.add(transaction)
+        session.commit()
+        session.refresh(transaction)
+
+        return {
+            "status": "success",
+            "message": "Transfer successful",
+            "transaction_id": str(transaction.transaction_id),
+            "from_account_balance": str(from_account.balance),
+        }
+
+    def get_balance(self, account_id: UUID, session: Session) -> Dict[str, Any]:
+        """Retorna o saldo atual da conta."""
+        statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(statement).first()
+
+        if not account:
+            return {"status": "failed", "message": f"Account {account_id} not found"}
+
+        return {
+            "status": "success",
+            "account_id": str(account.account_id),
+            "balance": str(account.balance),
+        }
+
+    def get_transactions(self, account_id: UUID, session: Session) -> Dict[str, Any]:
+        # Verificando se a conta existe
+        account_statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(account_statement).first()
+
+        if not account:
+            return {"status": "failed", "message": f"Account {account_id} not found"}
+
+        statement = (
+            select(Transaction)
+            .where(
+                (Transaction.from_account_id == account.id)
+                | (Transaction.to_account_id == account.id)
+            )
+            .order_by(Transaction.timestamp)
+        )
+
+        transactions = session.exec(statement).all()
+
+        formatted_transactions = [
+            {
+                "transaction_id": str(transaction.transaction_id),
+                "type": transaction.type,
+                "amount": str(transaction.amount),
+                "status": transaction.status,
+                "timestamp": transaction.timestamp,
+                "direction": "OUTGOING"
+                if transaction.from_account_id == account.id
+                else "INCOMING",
+            }
+            for transaction in transactions
         ]
 
-    def get_account_balance(self, account_id: str, db: Session) -> Dict[str, Any]:
-        """Gets the current balance of an account"""
-        # Validate account - will raise HTTPException if not found
-        account = AccountValidator.validate_account_exists(account_id, db)
-
-        # Return balance
-        return {"account_id": account.account_id, "balance": account.balance}
+        return {
+            "status": "success",
+            "account_id": str(account_id),
+            "transactions": formatted_transactions,
+        }
 
 
-# Instância única do Facade
 transaction_facade = TransactionFacade()

@@ -1,6 +1,7 @@
-from sqlmodel import create_engine, Session, SQLModel
-from typing import Generator
 import os
+from typing import Generator
+
+from sqlmodel import Session, SQLModel, create_engine
 
 DB_PATH = "database/SOLID_BANK.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")

@@ -1,21 +1,22 @@
-import pytest
 from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-from helpers.commands import (
-    DepositCommand,
-    WithdrawCommand,
-    TransferCommand,
-    GetTransactionsCommand,
-)
+import pytest
 from database.models import (
     Account,
-    Transaction,
-    AccountType,
     AccountStatus,
+    AccountType,
+    Transaction,
+    TransactionStatus,
+    TransactionType,
 )
-from database.models import TransactionType, TransactionStatus
+from helpers.commands import (
+    DepositCommand,
+    GetTransactionsCommand,
+    TransferCommand,
+    WithdrawCommand,
+)
 
 
 @pytest.fixture

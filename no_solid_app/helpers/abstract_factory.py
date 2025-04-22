@@ -1,192 +1,159 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Dict, Optional
+from uuid import UUID
+
+from database.models import Account, Transaction
 from sqlmodel import Session, select
 
-from database.models import Account, User
 
-
+# Abstract Factory Pattern
 class AccountInterface(ABC):
-    """Interface abstrata para contas bancárias"""
-
     @abstractmethod
-    def get_type(self) -> str:
+    def get_balance(
+        self, account_id: UUID, session: Session
+    ) -> Optional[Dict[str, Any]]:
         pass
 
     @abstractmethod
-    def get_features(self) -> dict:
+    def update_balance(
+        self, account_id: UUID, amount: Decimal, session: Session
+    ) -> Optional[Dict[str, Any]]:
         pass
 
     @abstractmethod
-    def create_db_entry(self, document_id: str, db: Session) -> Account:
+    def get_transactions(
+        self, account_id: UUID, session: Session
+    ) -> Optional[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def get_account_details(
+        self, account_id: UUID, session: Session
+    ) -> Optional[Dict[str, Any]]:
         pass
 
 
-class CheckingAccount(AccountInterface):
-    """Implementação de conta corrente"""
+class AccountFactory:
+    def create_account_handler(self) -> AccountInterface:
+        """Cria um handler de conta"""
+        pass
 
-    def get_type(self) -> str:
-        return "CHECKING"
 
-    def get_features(self) -> dict:
+class AccountHandler(AccountInterface):
+    """Implementação concreta para contas padrão"""
+
+    def get_balance(
+        self, account_id: UUID, session: Session
+    ) -> Optional[Dict[str, Any]]:
+        statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(statement).first()
+
+        if not account:
+            return None
+
         return {
-            "overdraft_allowed": True,
-            "minimum_balance": 0.0,
-            "maintenance_fee": 10.0,
+            "account_id": str(account.account_id),
+            "balance": str(account.balance),
+            "account_type": account.account_type,
+            "status": account.status,
         }
 
-    def create_db_entry(self, document_id: str, db: Session) -> Account:
-        # Busca usuário pelo documento
-        statement = select(User).where(User.document_id == document_id)
-        user = db.exec(statement).first()
+    def update_balance(
+        self, account_id: UUID, amount: Decimal, session: Session
+    ) -> Optional[Dict[str, Any]]:
+        statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(statement).first()
 
-        # Cria a conta
-        account = Account(
-            document_id=document_id,
-            balance=0.0,
-            account_type=self.get_type(),
-            status="ACTIVE",
-        )
+        if not account:
+            return None
 
-        # Adiciona a conta ao banco de dados
-        db.add(account)
-        db.commit()
-        db.refresh(account)
+        if account.balance + amount < 0:
+            return {
+                "status": "failed",
+                "message": "Operation would result in negative balance",
+                "current_balance": str(account.balance),
+            }
 
-        # Associa a conta ao usuário se existir
-        if user:
-            # No SQLModel, precisamos adicionar o user à lista de users da conta
-            # Isso é uma simplificação que não segue o padrão ideal de relações many-to-many
-            # Deliberadamente não otimizado para demonstrar problemas não-SOLID
-            account.users.append(user)
-            db.commit()
+        account.balance += amount
+        account.updated_at = datetime.now()
 
-        return account
+        session.add(account)
+        session.commit()
+        session.refresh(account)
 
-
-class SavingsAccount(AccountInterface):
-    """Implementação de conta poupança"""
-
-    def get_type(self) -> str:
-        return "SAVINGS"
-
-    def get_features(self) -> dict:
         return {
-            "interest_rate": 0.025,
-            "minimum_balance": 100.0,
-            "withdrawal_limit": 6,
+            "status": "success",
+            "account_id": str(account.account_id),
+            "new_balance": str(account.balance),
+            "account_type": account.account_type,
         }
 
-    def create_db_entry(self, document_id: str, db: Session) -> Account:
-        # Busca usuário pelo documento
-        statement = select(User).where(User.document_id == document_id)
-        user = db.exec(statement).first()
+    def get_transactions(
+        self, account_id: UUID, session: Session
+    ) -> Optional[Dict[str, Any]]:
+        # Verificar se a conta existe
+        account_statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(account_statement).first()
 
-        # Cria a conta
-        account = Account(
-            document_id=document_id,
-            balance=100.0,  # Saldo mínimo para conta poupança
-            account_type=self.get_type(),
-            status="ACTIVE",
+        if not account:
+            return None
+
+        # Buscar transações
+        statement = (
+            select(Transaction)
+            .where(
+                (Transaction.from_account_id == account.id)
+                | (Transaction.to_account_id == account.id)
+            )
+            .order_by(Transaction.timestamp)
         )
 
-        # Adiciona a conta ao banco de dados
-        db.add(account)
-        db.commit()
-        db.refresh(account)
+        transactions = session.exec(statement).all()
 
-        # Associa a conta ao usuário se existir
-        if user:
-            account.users.append(user)
-            db.commit()
+        # Formatação padrão para contas standard
+        formatted_transactions = [
+            {
+                "transaction_id": str(transaction.transaction_id),
+                "type": transaction.type,
+                "amount": str(transaction.amount),
+                "status": transaction.status,
+                "timestamp": transaction.timestamp,
+            }
+            for transaction in transactions
+        ]
 
-        return account
-
-
-class InvestmentAccount(AccountInterface):
-    """Implementação de conta de investimento"""
-
-    def get_type(self) -> str:
-        return "INVESTMENT"
-
-    def get_features(self) -> dict:
         return {
-            "interest_rate": 0.05,
-            "minimum_balance": 1000.0,
-            "lock_period_days": 30,
+            "account_id": str(account_id),
+            "transactions": formatted_transactions,
+            "count": len(formatted_transactions),
         }
 
-    def create_db_entry(self, document_id: str, db: Session) -> Account:
-        # Busca usuário pelo documento
-        statement = select(User).where(User.document_id == document_id)
-        user = db.exec(statement).first()
+    def get_account_details(
+        self, account_id: UUID, session: Session
+    ) -> Optional[Dict[str, Any]]:
+        statement = select(Account).where(Account.account_id == account_id)
+        account = session.exec(statement).first()
 
-        # Cria a conta
-        account = Account(
-            document_id=document_id,
-            balance=1000.0,  # Saldo mínimo para conta de investimento
-            account_type=self.get_type(),
-            status="ACTIVE",
-        )
+        if not account:
+            return None
 
-        # Adiciona a conta ao banco de dados
-        db.add(account)
-        db.commit()
-        db.refresh(account)
-
-        # Associa a conta ao usuário se existir
-        if user:
-            account.users.append(user)
-            db.commit()
-
-        return account
+        return {
+            "account_id": str(account.account_id),
+            "balance": str(account.balance),
+            "account_type": account.account_type,
+            "status": account.status,
+            "created_at": account.created_at,
+            "updated_at": account.updated_at,
+        }
 
 
-class AccountFactory(ABC):
-    """Interface abstrata para fábricas de contas"""
+class HandlerAccountFactory(AccountFactory):
+    """Factory para criar handlers de contas padrão"""
 
-    @abstractmethod
-    def create_account(self, document_id: str, db: Session) -> AccountInterface:
-        pass
-
-
-class CheckingAccountFactory(AccountFactory):
-    """Fábrica de contas correntes"""
-
-    def create_account(self, document_id: str, db: Session) -> AccountInterface:
-        return CheckingAccount()
+    def create_account_handler(self) -> AccountInterface:
+        return AccountHandler()
 
 
-class SavingsAccountFactory(AccountFactory):
-    """Fábrica de contas poupança"""
-
-    def create_account(self, document_id: str, db: Session) -> AccountInterface:
-        return SavingsAccount()
-
-
-class InvestmentAccountFactory(AccountFactory):
-    """Fábrica de contas de investimento"""
-
-    def create_account(self, document_id: str, db: Session) -> AccountInterface:
-        return InvestmentAccount()
-
-
-class AccountFactoryProducer:
-    """
-    Producer of account factories - follows the Abstract Factory pattern
-
-    This implementation demonstrates the Abstract Factory pattern to create
-    different types of accounts through their respective factories.
-    """
-
-    @staticmethod
-    def get_factory(account_type: str) -> AccountFactory:
-        """Get the appropriate factory for the account type"""
-
-        if account_type == "CHECKING":
-            return CheckingAccountFactory()
-        elif account_type == "SAVINGS":
-            return SavingsAccountFactory()
-        elif account_type == "INVESTMENT":
-            return InvestmentAccountFactory()
-        else:
-            # Default to checking account as a fallback
-            return CheckingAccountFactory()
+account_factory = HandlerAccountFactory()

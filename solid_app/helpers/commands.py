@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal
-from uuid import uuid4, UUID
 from datetime import datetime
+from decimal import Decimal
+from typing import Any, Dict
+from uuid import UUID, uuid4
+
+from database.models import Account, Transaction, TransactionStatus, TransactionType
 from sqlmodel import Session, select
-from database.models import Account, Transaction, TransactionType, TransactionStatus
-from typing import Dict, Any
 
 # Command Pattern
 
@@ -21,10 +22,10 @@ class DepositCommand(Command):
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError as e:
+        except ValueError as error:
             raise ValueError(
                 f"Invalid account_id format. Expected UUID, got: {account_id}"
-            ) from e
+            ) from error
 
         self.amount = amount
 
@@ -69,10 +70,10 @@ class TransferCommand(Command):
             self.to_account_id = (
                 UUID(to_account_id) if isinstance(to_account_id, str) else to_account_id
             )
-        except ValueError as e:
+        except ValueError as error:
             raise ValueError(
                 f"Invalid to_account_id format. Expected UUID, got: {to_account_id}"
-            ) from e
+            ) from error
 
         self.amount = amount
 
@@ -125,10 +126,10 @@ class WithdrawCommand(Command):
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError as e:
+        except ValueError as error:
             raise ValueError(
                 f"Invalid account_id format. Expected UUID, got: {account_id}"
-            ) from e
+            ) from error
 
         self.amount = amount
 
@@ -165,10 +166,10 @@ class GetTransactionsCommand(Command):
             self.account_id = (
                 UUID(account_id) if isinstance(account_id, str) else account_id
             )
-        except ValueError as e:
+        except ValueError as error:
             raise ValueError(
                 f"Invalid account_id format. Expected UUID, got: {account_id}"
-            ) from e
+            ) from error
 
     def execute(self, session: Session) -> Dict[str, Any]:
         # Find the account
