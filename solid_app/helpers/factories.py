@@ -2,11 +2,10 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Any, Dict
 
-from fastapi import Depends
-from sqlmodel import Session
-
 from database.database import get_session
 from database.models import Account, AccountStatus, User, UserType
+from fastapi import Depends
+from sqlmodel import Session
 
 # Factory Method Pattern
 

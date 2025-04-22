@@ -1,9 +1,7 @@
 from typing import Dict
 
-from sqlmodel import Session
-
-
 from database.models import Account, AccountType, User, UserType
+from sqlmodel import Session
 
 # Singleton Pattern
 
@@ -42,4 +40,5 @@ class UserCreator:
             raise exception
 
 
+# Intância única (Singleton) para acessar o método
 user_creator = UserCreator()

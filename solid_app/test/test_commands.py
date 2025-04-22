@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-
 from database.models import (
     Account,
     AccountStatus,

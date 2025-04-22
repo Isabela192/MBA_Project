@@ -3,17 +3,15 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, status, HTTPException
+from database.database import create_db_and_tables, get_session
+from database.models import Account, User
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from helpers.facade import transaction_facade
+from helpers.singleton import user_creator
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
-from database.models import Account, User
-
-
-from database.database import create_db_and_tables, get_session
-from helpers.singleton import user_creator
-from helpers.facade import transaction_facade
 
 
 @asynccontextmanager

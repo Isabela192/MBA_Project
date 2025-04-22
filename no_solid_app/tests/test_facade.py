@@ -3,10 +3,9 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
-from sqlmodel import Session
-
-from database.models import Account, Transaction, TransactionType, TransactionStatus
+from database.models import Account, Transaction, TransactionStatus, TransactionType
 from helpers.facade import TransactionFacade
+from sqlmodel import Session
 
 
 class TestTransactionFacade:

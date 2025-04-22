@@ -1,12 +1,11 @@
 from unittest.mock import MagicMock
 
 import pytest
+from database.database import get_session
 from fastapi.testclient import TestClient
+from main import app
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
-
-from database.database import get_session
-from main import app
 
 
 @pytest.fixture

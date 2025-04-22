@@ -2,14 +2,11 @@ from contextlib import asynccontextmanager
 from decimal import Decimal
 from uuid import UUID
 
+from database.database import create_db_and_tables, get_session
+from database.models import Account, User
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from sqlmodel import Session, select
-
-from database.database import create_db_and_tables, get_session
-from database.models import Account, User
 from helpers.commands import (
     DepositCommand,
     GetTransactionsCommand,
@@ -18,6 +15,8 @@ from helpers.commands import (
 )
 from helpers.factories import ClientFactory, ManagerFactory
 from helpers.proxies import AccountProxy, RealAccount
+from pydantic import BaseModel, Field
+from sqlmodel import Session, select
 
 
 @asynccontextmanager
