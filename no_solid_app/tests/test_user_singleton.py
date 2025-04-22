@@ -1,8 +1,7 @@
-from fastapi.testclient import TestClient
-from sqlmodel import Session
-
 from database.models import UserType
+from fastapi.testclient import TestClient
 from helpers.singleton import UserCreator, user_creator
+from sqlmodel import Session
 
 
 class TestUserCreatorSingleton:

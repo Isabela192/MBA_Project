@@ -3,16 +3,15 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, status
+from database.database import create_db_and_tables, get_session
+from database.models import Account, User
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from helpers.facade import transaction_facade
+from helpers.singleton import user_creator
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
-from database.models import Account, User
-
-
-from database.database import create_db_and_tables, get_session
-from helpers.singleton import user_creator
 
 
 @asynccontextmanager
@@ -114,10 +113,8 @@ async def get_users(session: Session = Depends(get_session)):
 
 @app.post("/users/", status_code=status.HTTP_201_CREATED)
 async def create_user(user_data: UserCreate, db: Session = Depends(get_session)):
-    # Use the Singleton pattern for user creation
     user = user_creator.create_user(user_data.model_dump(), db)
 
-    # Get the account associated with this user
     account = user.accounts[0] if user.accounts else None
     account_id = str(account.account_id) if account else None
 
@@ -131,3 +128,92 @@ async def create_user(user_data: UserCreate, db: Session = Depends(get_session))
 
 
 # --- Transaction Routes (using Facade pattern) ---
+@app.post("/accounts/{account_id}/deposit")
+async def deposit(
+    account_id: UUID,
+    deposit_request: DepositRequest,
+    session: Session = Depends(get_session),
+):
+    result = transaction_facade.deposit(account_id, deposit_request.amount, session)
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("message", "Deposit failed"),
+        )
+
+    return {
+        "message": result["message"],
+        "transaction_id": result["transaction_id"],
+        "new_balance": result["new_balance"],
+    }
+
+
+@app.post("/accounts/{account_id}/withdraw")
+async def withdraw(
+    account_id: UUID,
+    withdraw_request: WithdrawRequest,
+    session: Session = Depends(get_session),
+):
+    result = transaction_facade.withdraw(account_id, withdraw_request.amount, session)
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("message", "Withdraw failed"),
+        )
+
+    return {
+        "message": result["message"],
+        "transaction_id": result["transaction_id"],
+        "new_balance": result["new_balance"],
+    }
+
+
+@app.post("/accounts/{account_id}/transfer")
+async def transfer(
+    account_id: UUID,
+    transfer_request: TransferRequest,
+    session: Session = Depends(get_session),
+):
+    result = transaction_facade.transfer(
+        account_id, transfer_request.to_account_id, transfer_request.amount, session
+    )
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("message", "Transfer failed"),
+        )
+
+    return {
+        "message": result["message"],
+        "transaction_id": result["transaction_id"],
+        "new_balance": result["from_account_balance"],
+    }
+
+
+@app.get("/accounts/{account_id}/balance")
+async def get_balance(account_id: UUID, session: Session = Depends(get_session)):
+    result = transaction_facade.get_balance(account_id, session)
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get("message", f"Account {account_id} not found"),
+        )
+
+    return {"balance": result["balance"]}
+
+
+@app.get("/accounts/{account_id}/transactions")
+async def get_transactions(account_id: UUID, session: Session = Depends(get_session)):
+    result = transaction_facade.get_transactions(account_id, session)
+
+    if result.get("status") == "failed":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get("message", f"Account {account_id} not found"),
+        )
+
+    return {"account_id": result["account_id"], "transactions": result["transactions"]}
