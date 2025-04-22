@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     print("Shutting down...")
 
 
-app = FastAPI(lifespan=lifespan, title="SOLID Bank API", version="1.5.0")
+app = FastAPI(lifespan=lifespan, title="SOLID Bank API")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -62,6 +62,7 @@ async def root():
     return FileResponse("static/welcome.html")
 
 
+# --- User Routes (using Factory pattern) ---
 @app.get("/users/")
 async def get_users(session: Session = Depends(get_session)):
     statement = select(User)
@@ -130,6 +131,7 @@ async def create_user(
     }
 
 
+# --- Transaction Routes (using command pattern) ---
 @app.post("/accounts/{account_id}/deposit")
 async def deposit(
     account_id: UUID,
