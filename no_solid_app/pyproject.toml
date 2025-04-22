@@ -14,6 +14,7 @@ sqlalchemy = "^2.0.40"
 bcrypt = "^4.0.1"
 uvicorn = "^0.29.0"
 pre-commit = "^4.2.0"
+wily = "^1.25.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

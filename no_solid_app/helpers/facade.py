@@ -177,9 +177,11 @@ class TransactionFacade:
                 "amount": str(transaction.amount),
                 "status": transaction.status,
                 "timestamp": transaction.timestamp,
-                "direction": "OUTGOING"
-                if transaction.from_account_id == account.id
-                else "INCOMING",
+                "direction": (
+                    "OUTGOING"
+                    if transaction.from_account_id == account.id
+                    else "INCOMING"
+                ),
             }
             for transaction in transactions
         ]
