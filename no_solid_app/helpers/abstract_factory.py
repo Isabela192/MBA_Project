@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from sqlmodel import Session, select
 
 from database.models import Account, User

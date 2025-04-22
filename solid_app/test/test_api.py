@@ -1,7 +1,9 @@
-from fastapi.testclient import TestClient
-from main import app
 from decimal import Decimal
+
 import pytest
+from fastapi.testclient import TestClient
+
+from main import app
 
 client = TestClient(app)
 
@@ -23,8 +25,9 @@ def test_user_get():
 @pytest.mark.skip(reason="Integration test requires database setup")
 def test_update_balance(client, db_session):
     """Test the update_balance endpoint with a test database session."""
-    from database.models import User, Account
     from uuid import uuid4
+
+    from database.models import Account, User
 
     # Create test user and account directly in the database
     test_user = User(

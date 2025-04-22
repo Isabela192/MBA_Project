@@ -1,6 +1,7 @@
 from uuid import UUID
+
+from database.models import AccountType, User, UserType
 from helpers.factories import ClientFactory, ManagerFactory
-from database.models import User, UserType, AccountType
 
 
 def test_client_factory_create_user(client_user, mock_session):

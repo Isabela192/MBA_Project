@@ -1,7 +1,9 @@
 from decimal import Decimal
+
 from fastapi import status
 from sqlmodel import select
-from database.models import User, Account, UserType, AccountType
+
+from database.models import Account, AccountType, User, UserType
 
 
 class TestUserEndpoints:

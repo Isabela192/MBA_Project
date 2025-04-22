@@ -1,10 +1,10 @@
-from typing import Optional, List
 from datetime import datetime
-from uuid import uuid4
-from enum import Enum
-from sqlmodel import Field, SQLModel, Relationship
 from decimal import Decimal
-from uuid import UUID
+from enum import Enum
+from typing import List, Optional
+from uuid import UUID, uuid4
+
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class UserType(str, Enum):

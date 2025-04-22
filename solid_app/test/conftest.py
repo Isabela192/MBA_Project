@@ -1,11 +1,12 @@
+from unittest.mock import MagicMock
+
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
 from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
-from main import app
 from database.database import get_session
-from unittest.mock import MagicMock
+from main import app
 
 
 @pytest.fixture

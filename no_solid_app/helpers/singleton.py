@@ -1,10 +1,11 @@
+from typing import Dict, Optional
+from uuid import uuid4
+
 import bcrypt
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from uuid import uuid4
-from typing import Optional, Dict
 
-from database.models import User, SessionModel, Account
+from database.models import Account, SessionModel, User
 
 # Singleton Pattern Implementation
 

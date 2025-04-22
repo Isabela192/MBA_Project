@@ -1,6 +1,7 @@
+from typing import Any, Dict, List
+
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from typing import Dict, Any, List
 
 from database.models import Account, Transaction
 from helpers.singleton import Singleton
